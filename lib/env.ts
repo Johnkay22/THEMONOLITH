@@ -1,0 +1,18 @@
+function readEnv(name: string) {
+  return process.env[name];
+}
+
+export const env = {
+  NEXT_PUBLIC_SUPABASE_URL: readEnv("NEXT_PUBLIC_SUPABASE_URL"),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: readEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
+  SUPABASE_SERVICE_ROLE_KEY: readEnv("SUPABASE_SERVICE_ROLE_KEY"),
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: readEnv(
+    "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY",
+  ),
+  STRIPE_SECRET_KEY: readEnv("STRIPE_SECRET_KEY"),
+  STRIPE_WEBHOOK_SECRET: readEnv("STRIPE_WEBHOOK_SECRET"),
+};
+
+export const hasPublicSupabaseEnv =
+  Boolean(env.NEXT_PUBLIC_SUPABASE_URL) &&
+  Boolean(env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
