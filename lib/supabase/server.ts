@@ -2,18 +2,25 @@ import "server-only";
 
 import { createClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { env, hasPublicSupabaseEnv } from "@/lib/env";
+import { env } from "@/lib/env";
 
 let serviceRoleClient: SupabaseClient | null | undefined;
 
 export function getServerSupabaseClient() {
-  if (!hasPublicSupabaseEnv) {
+  if (!env.NEXT_PUBLIC_SUPABASE_URL) {
+    return null;
+  }
+
+  // Prefer anon for read parity with browser policy behavior.
+  // If anon is misconfigured, fall back to service role so server snapshots still work.
+  const readKey = env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!readKey) {
     return null;
   }
 
   return createClient(
-    env.NEXT_PUBLIC_SUPABASE_URL!,
-    env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    env.NEXT_PUBLIC_SUPABASE_URL,
+    readKey,
     {
       auth: {
         persistSession: false,
