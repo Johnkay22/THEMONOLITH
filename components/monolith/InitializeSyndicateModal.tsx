@@ -27,12 +27,14 @@ export function InitializeSyndicateModal({
     minimumContribution.toFixed(2),
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) {
       setProposedContent("");
       setInitialContribution(minimumContribution.toFixed(2));
       setIsSubmitting(false);
+      setSubmissionError(null);
     }
   }, [open, minimumContribution]);
 
@@ -40,15 +42,34 @@ export function InitializeSyndicateModal({
     event.preventDefault();
     const contribution = Number(initialContribution);
     if (Number.isNaN(contribution) || contribution < minimumContribution) {
+      setSubmissionError(
+        `Initial contribution must be at least ${formatUsd(minimumContribution)}.`,
+      );
       return;
     }
 
+    if (!proposedContent.trim()) {
+      setSubmissionError("Proposed inscription is required.");
+      return;
+    }
+
+    setSubmissionError(null);
     setIsSubmitting(true);
-    await onDeploy?.({
-      proposedContent: proposedContent.trim(),
-      initialContribution: Number(contribution.toFixed(2)),
-    });
-    setIsSubmitting(false);
+
+    try {
+      await onDeploy?.({
+        proposedContent: proposedContent.trim(),
+        initialContribution: Number(contribution.toFixed(2)),
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to deploy funds. Please try again.";
+      setSubmissionError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -95,7 +116,12 @@ export function InitializeSyndicateModal({
                   rows={4}
                   maxLength={180}
                   value={proposedContent}
-                  onChange={(event) => setProposedContent(event.target.value)}
+                  onChange={(event) => {
+                    setProposedContent(event.target.value);
+                    if (submissionError) {
+                      setSubmissionError(null);
+                    }
+                  }}
                   className="field-input resize-none"
                   placeholder="YOUR MESSAGE HERE"
                 />
@@ -111,11 +137,22 @@ export function InitializeSyndicateModal({
                   min={minimumContribution}
                   step="0.01"
                   value={initialContribution}
-                  onChange={(event) => setInitialContribution(event.target.value)}
+                  onChange={(event) => {
+                    setInitialContribution(event.target.value);
+                    if (submissionError) {
+                      setSubmissionError(null);
+                    }
+                  }}
                   className="field-input"
                   placeholder="1.00"
                 />
               </label>
+
+              {submissionError ? (
+                <p className="font-mono text-[0.62rem] uppercase tracking-[0.17em] text-white/70">
+                  [ {submissionError} ]
+                </p>
+              ) : null}
 
               <button
                 type="submit"

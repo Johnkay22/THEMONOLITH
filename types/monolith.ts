@@ -21,3 +21,8 @@ export type SyndicateLedgerRow = Syndicate & {
   target: number;
   progressRatio: number;
 };
+
+export type MonolithSnapshot = {
+  monolith: MonolithOccupant;
+  syndicates: Syndicate[];
+};

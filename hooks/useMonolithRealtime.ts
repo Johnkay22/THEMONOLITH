@@ -3,12 +3,11 @@
 import { useEffect, useState } from "react";
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browser";
-import type { MonolithOccupant } from "@/types/monolith";
-
-function toNumber(value: unknown) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
+import {
+  normalizeMonolithRecord,
+  normalizeSyndicateRecord,
+} from "@/lib/protocol/normalizers";
+import type { MonolithOccupant, MonolithSnapshot, Syndicate } from "@/types/monolith";
 
 function parseRealtimeMonolithRecord(
   payload: RealtimePostgresChangesPayload<{ [key: string]: unknown }>,
@@ -19,11 +18,6 @@ function parseRealtimeMonolithRecord(
   }
 
   const row = record as Record<string, unknown>;
-
-  if (row.active !== true) {
-    return null;
-  }
-
   if (
     typeof row.id !== "string" ||
     typeof row.content !== "string" ||
@@ -32,22 +26,53 @@ function parseRealtimeMonolithRecord(
     return null;
   }
 
-  return {
-    id: row.id,
-    content: row.content,
-    valuation: toNumber(row.valuation),
-    ownerId: typeof row.owner_id === "string" ? row.owner_id : null,
-    createdAt: row.created_at,
-    active: true,
-  } satisfies MonolithOccupant;
+  const monolith = normalizeMonolithRecord(row);
+  if (!monolith.active) {
+    return null;
+  }
+
+  return monolith;
 }
 
-export function useMonolithRealtime(initialMonolith: MonolithOccupant) {
-  const [monolith, setMonolith] = useState(initialMonolith);
+function parseRealtimeSyndicateRecord(
+  payload: RealtimePostgresChangesPayload<{ [key: string]: unknown }>,
+) {
+  const nextRecord = payload.new;
+  if (!nextRecord || typeof nextRecord !== "object" || Array.isArray(nextRecord)) {
+    return null;
+  }
+
+  return normalizeSyndicateRecord(nextRecord as Record<string, unknown>);
+}
+
+function removeSyndicateById(syndicates: Syndicate[], id: string) {
+  return syndicates.filter((syndicate) => syndicate.id !== id);
+}
+
+function upsertActiveSyndicate(syndicates: Syndicate[], nextSyndicate: Syndicate) {
+  const withoutPrevious = removeSyndicateById(syndicates, nextSyndicate.id);
+  if (nextSyndicate.status !== "active") {
+    return withoutPrevious;
+  }
+
+  return [...withoutPrevious, nextSyndicate];
+}
+
+export function useMonolithRealtime(
+  initialMonolith: MonolithOccupant,
+  initialSyndicates: Syndicate[],
+) {
+  const [snapshot, setSnapshot] = useState<MonolithSnapshot>({
+    monolith: initialMonolith,
+    syndicates: initialSyndicates,
+  });
 
   useEffect(() => {
-    setMonolith(initialMonolith);
-  }, [initialMonolith]);
+    setSnapshot({
+      monolith: initialMonolith,
+      syndicates: initialSyndicates,
+    });
+  }, [initialMonolith, initialSyndicates]);
 
   useEffect(() => {
     const supabase = getBrowserSupabaseClient();
@@ -70,7 +95,54 @@ export function useMonolithRealtime(initialMonolith: MonolithOccupant) {
             return;
           }
 
-          setMonolith(nextMonolith);
+          setSnapshot((previous) => ({
+            ...previous,
+            monolith: nextMonolith,
+          }));
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "syndicates",
+        },
+        (payload) => {
+          if (payload.eventType === "DELETE") {
+            const previousRecord = payload.old;
+            const previousRow =
+              previousRecord &&
+              typeof previousRecord === "object" &&
+              !Array.isArray(previousRecord)
+                ? (previousRecord as Record<string, unknown>)
+                : null;
+            const previousId =
+              previousRow && typeof previousRow.id === "string"
+                ? previousRow.id
+                : null;
+
+            if (!previousId) {
+              return;
+            }
+
+            setSnapshot((previous) => ({
+              ...previous,
+              syndicates: removeSyndicateById(previous.syndicates, previousId),
+            }));
+
+            return;
+          }
+
+          const nextSyndicate = parseRealtimeSyndicateRecord(payload);
+          if (!nextSyndicate) {
+            return;
+          }
+
+          setSnapshot((previous) => ({
+            ...previous,
+            syndicates: upsertActiveSyndicate(previous.syndicates, nextSyndicate),
+          }));
         },
       )
       .subscribe();
@@ -80,5 +152,5 @@ export function useMonolithRealtime(initialMonolith: MonolithOccupant) {
     };
   }, []);
 
-  return monolith;
+  return snapshot;
 }
