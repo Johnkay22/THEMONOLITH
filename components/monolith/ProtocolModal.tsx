@@ -44,8 +44,8 @@ export function ProtocolModal({ open, onClose }: ProtocolModalProps) {
             <ul className="space-y-3 font-mono text-[0.62rem] uppercase tracking-[0.17em] text-white/78">
               <li>The Monolith displays one message at a time.</li>
               <li>
-                To overwrite the current message, you must pay at least $1.00 USD
-                more than the current valuation.
+                To overwrite the current message, you must commit at least $1.00
+                USD more than the current valuation.
               </li>
               <li>There are no refunds. Only glory.</li>
             </ul>

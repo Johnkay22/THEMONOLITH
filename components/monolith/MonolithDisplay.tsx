@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 
 type MonolithDisplayProps = {
@@ -9,6 +10,9 @@ type MonolithDisplayProps = {
 
 export function MonolithDisplay({ content, transitionKey }: MonolithDisplayProps) {
   const normalizedContent = content.replace(/\s+/g, " ").trim();
+  const containerRef = useRef<HTMLElement>(null);
+  const textRef = useRef<HTMLHeadingElement>(null);
+
   const variantClass =
     normalizedContent.length > 90
       ? "monolith-display--dense"
@@ -16,10 +20,72 @@ export function MonolithDisplay({ content, transitionKey }: MonolithDisplayProps
         ? "monolith-display--balanced"
         : "monolith-display--hero";
 
+  const fitDisplayText = useCallback(() => {
+    const container = containerRef.current;
+    const text = textRef.current;
+    if (!container || !text) {
+      return;
+    }
+
+    const maxSize =
+      variantClass === "monolith-display--hero"
+        ? 260
+        : variantClass === "monolith-display--balanced"
+          ? 200
+          : 150;
+    const minSize = 14;
+
+    let low = minSize;
+    let high = maxSize;
+    let best = minSize;
+
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+      text.style.fontSize = `${mid}px`;
+
+      const fits =
+        text.scrollWidth <= container.clientWidth &&
+        text.scrollHeight <= container.clientHeight;
+
+      if (fits) {
+        best = mid;
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
+    }
+
+    text.style.fontSize = `${best}px`;
+  }, [variantClass]);
+
+  useEffect(() => {
+    fitDisplayText();
+  }, [fitDisplayText, transitionKey]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) {
+      return;
+    }
+
+    const resizeObserver = new ResizeObserver(() => {
+      fitDisplayText();
+    });
+    resizeObserver.observe(container);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [fitDisplayText]);
+
   return (
-    <section className="flex min-h-[58svh] items-center justify-center">
+    <section
+      ref={containerRef}
+      className="relative flex h-[58svh] min-h-[17rem] max-h-[65svh] items-center justify-center overflow-hidden px-1"
+    >
       <AnimatePresence mode="wait">
         <motion.h1
+          ref={textRef}
           key={transitionKey}
           className={`monolith-display ${variantClass} text-center`}
           initial={{ opacity: 0, filter: "blur(6px)" }}

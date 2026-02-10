@@ -20,8 +20,9 @@ body {
     letter-spacing: -0.06em;
     line-height: 0.78;
     max-width: min(98vw, 42rem);
-    overflow-wrap: anywhere;
-    word-break: break-word;
+    overflow-wrap: normal;
+    word-break: normal;
+    hyphens: none;
     text-transform: uppercase;
     text-wrap: balance;
   }
