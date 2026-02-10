@@ -9,11 +9,12 @@ import {
   normalizeMonolithRecord,
   normalizeSyndicateRecord,
 } from "@/lib/protocol/normalizers";
+import { calculateDisplacementCost } from "@/lib/protocol/pricing";
 import {
   getServerSupabaseClient,
   getServiceRoleSupabaseClient,
 } from "@/lib/supabase/server";
-import type { MonolithSnapshot, Syndicate } from "@/types/monolith";
+import type { MonolithOccupant, MonolithSnapshot, Syndicate } from "@/types/monolith";
 
 type InitializeSyndicateInput = {
   proposedContent: string;
@@ -24,6 +25,15 @@ type InitializeSyndicateInput = {
 type InitializeSyndicateResult = {
   syndicate: Syndicate;
   coupExecuted: boolean;
+};
+
+type AcquireSoloInput = {
+  content: string;
+  bidAmount: number;
+};
+
+type AcquireSoloResult = {
+  monolith: MonolithOccupant;
 };
 
 export class MonolithValidationError extends Error {}
@@ -86,6 +96,88 @@ export async function getLandingSnapshot() {
     monolith,
     syndicates,
   } satisfies MonolithSnapshot;
+}
+
+export async function acquireSolo(input: AcquireSoloInput): Promise<AcquireSoloResult> {
+  const supabase = getServiceRoleSupabaseClient();
+  if (!supabase) {
+    throw new Error(
+      "Supabase service role key is missing. Set SUPABASE_SERVICE_ROLE_KEY to enable solo acquisition.",
+    );
+  }
+
+  const content = normalizeProposedContent(input.content);
+  const bidAmount = normalizeContribution(input.bidAmount);
+  if (!content) {
+    throw new MonolithValidationError("Inscription is required.");
+  }
+
+  if (content.length > MAX_INSCRIPTION_CHARACTERS) {
+    throw new MonolithValidationError(
+      `Inscription must be ${MAX_INSCRIPTION_CHARACTERS} characters or fewer.`,
+    );
+  }
+
+  if (Number.isNaN(bidAmount) || !Number.isFinite(bidAmount)) {
+    throw new MonolithValidationError("Bid amount is invalid.");
+  }
+
+  const { data: activeRow, error: activeError } = await supabase
+    .from("monolith_history")
+    .select("id, content, valuation, owner_id, created_at, active")
+    .eq("active", true)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (activeError || !activeRow) {
+    throw new Error("Failed to read current monolith.");
+  }
+
+  const activeMonolith = normalizeMonolithRecord(
+    activeRow as Record<string, unknown>,
+  );
+  const displacementCost = calculateDisplacementCost(activeMonolith.valuation);
+  if (bidAmount < displacementCost) {
+    throw new MonolithValidationError(
+      `Bid must be at least ${displacementCost.toFixed(2)}.`,
+    );
+  }
+
+  const { data: archivedRows, error: archiveError } = await supabase
+    .from("monolith_history")
+    .update({ active: false })
+    .eq("id", activeMonolith.id)
+    .eq("active", true)
+    .select("id");
+
+  if (archiveError || !archivedRows || archivedRows.length === 0) {
+    throw new Error("Failed to archive the current monolith.");
+  }
+
+  const { data: insertedMonolith, error: insertError } = await supabase
+    .from("monolith_history")
+    .insert({
+      content,
+      valuation: bidAmount,
+      active: true,
+    })
+    .select("id, content, valuation, owner_id, created_at, active")
+    .single();
+
+  if (insertError || !insertedMonolith) {
+    await supabase
+      .from("monolith_history")
+      .update({ active: true })
+      .eq("id", activeMonolith.id);
+    throw new Error("Failed to create new monolith occupant.");
+  }
+
+  return {
+    monolith: normalizeMonolithRecord(
+      insertedMonolith as Record<string, unknown>,
+    ),
+  };
 }
 
 async function resolveCoupIfEligible(syndicate: Syndicate) {

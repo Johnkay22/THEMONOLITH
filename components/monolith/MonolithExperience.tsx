@@ -2,9 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { AcquireSoloModal } from "@/components/monolith/AcquireSoloModal";
 import { ControlDeck } from "@/components/monolith/ControlDeck";
 import { InitializeSyndicateModal } from "@/components/monolith/InitializeSyndicateModal";
 import { MonolithDisplay } from "@/components/monolith/MonolithDisplay";
+import { ProtocolRules } from "@/components/monolith/ProtocolRules";
 import { SyndicateLedger } from "@/components/monolith/SyndicateLedger";
 import { useMonolithRealtime } from "@/hooks/useMonolithRealtime";
 import { buildSyndicateLedgerRows } from "@/lib/protocol/normalizers";
@@ -22,6 +24,7 @@ export function MonolithExperience({
 }: MonolithExperienceProps) {
   const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAcquireSoloModalOpen, setIsAcquireSoloModalOpen] = useState(false);
   const snapshot = useMonolithRealtime(initialMonolith, initialSyndicates);
 
   const displacementCost = useMemo(
@@ -63,6 +66,35 @@ export function MonolithExperience({
     router.refresh();
   };
 
+  const handleAcquireSolo = async (draft: { content: string }) => {
+    const response = await fetch("/api/monolith/acquire-solo", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        content: draft.content,
+        bidAmount: displacementCost,
+      }),
+    });
+
+    let payload: { error?: string } | null = null;
+    try {
+      payload = (await response.json()) as { error?: string };
+    } catch {
+      payload = null;
+    }
+
+    if (!response.ok) {
+      throw new Error(
+        payload?.error ?? "Failed to acquire the monolith. Please try again.",
+      );
+    }
+
+    setIsAcquireSoloModalOpen(false);
+    router.refresh();
+  };
+
   return (
     <>
       <main className="mx-auto flex min-h-svh w-full max-w-screen-sm flex-col px-5 pb-7 pt-5">
@@ -77,11 +109,13 @@ export function MonolithExperience({
 
         <ControlDeck
           displacementCost={displacementCost}
-          onAcquireSolo={() => undefined}
+          onAcquireSolo={() => setIsAcquireSoloModalOpen(true)}
           onInitializeSyndicate={() => setIsModalOpen(true)}
         />
 
-        <section className="space-y-3 border-t border-white/20 pt-4">
+        <ProtocolRules />
+
+        <section className="space-y-3 border-t border-white/20 pt-4 mt-4">
           <h2 className="ui-label">
             LEDGER: PENDING ACQUISITIONS ({ledgerRows.length})
           </h2>
@@ -94,6 +128,13 @@ export function MonolithExperience({
         minimumContribution={1}
         onClose={() => setIsModalOpen(false)}
         onDeploy={handleInitializeSyndicate}
+      />
+
+      <AcquireSoloModal
+        open={isAcquireSoloModalOpen}
+        displacementCost={displacementCost}
+        onClose={() => setIsAcquireSoloModalOpen(false)}
+        onAcquire={handleAcquireSolo}
       />
     </>
   );

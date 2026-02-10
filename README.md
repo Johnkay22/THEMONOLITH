@@ -15,8 +15,12 @@ Step 2 (Supabase integration) and Step 3 (Realtime transitions) are now wired.
 - The client subscribes to Supabase Realtime updates for:
   - `monolith_history`
   - `syndicates`
+- The client also performs a low-frequency snapshot poll fallback so state still
+  updates if Realtime channels temporarily fail.
 - The center inscription fades between occupants with Framer Motion.
 - The ledger updates live as syndicates are inserted/updated/archived.
+- Acquire Solo is connected in prototype mode through `/api/monolith/acquire-solo`
+  (backend mutation path without Stripe settlement yet).
 - A syndicate initialize API route persists:
   - `syndicates` row
   - initial `contributions` row
@@ -27,6 +31,9 @@ Step 2 (Supabase integration) and Step 3 (Realtime transitions) are now wired.
 
 ```txt
 app/
+  api/monolith/
+    acquire-solo/route.ts
+    snapshot/route.ts
   api/syndicates/
     initialize/route.ts
   api/stripe/
@@ -37,10 +44,12 @@ app/
   page.tsx
 
 components/monolith/
+  AcquireSoloModal.tsx
   ControlDeck.tsx
   InitializeSyndicateModal.tsx
   MonolithDisplay.tsx
   MonolithExperience.tsx
+  ProtocolRules.tsx
   SyndicateLedger.tsx
 
 hooks/

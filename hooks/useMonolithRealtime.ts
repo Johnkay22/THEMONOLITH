@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browser";
 import {
   normalizeMonolithRecord,
   normalizeSyndicateRecord,
+  toNumber,
 } from "@/lib/protocol/normalizers";
 import type { MonolithOccupant, MonolithSnapshot, Syndicate } from "@/types/monolith";
 
@@ -58,6 +59,100 @@ function upsertActiveSyndicate(syndicates: Syndicate[], nextSyndicate: Syndicate
   return [...withoutPrevious, nextSyndicate];
 }
 
+function parseSnapshotPayload(payload: unknown): MonolithSnapshot | null {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return null;
+  }
+
+  const row = payload as Record<string, unknown>;
+  const monolithRecord =
+    row.monolith && typeof row.monolith === "object" && !Array.isArray(row.monolith)
+      ? (row.monolith as Record<string, unknown>)
+      : null;
+
+  if (!monolithRecord || typeof monolithRecord.id !== "string") {
+    return null;
+  }
+
+  const monolithContent =
+    typeof monolithRecord.content === "string" ? monolithRecord.content : null;
+  const monolithCreatedAt =
+    typeof monolithRecord.createdAt === "string"
+      ? monolithRecord.createdAt
+      : typeof monolithRecord.created_at === "string"
+        ? monolithRecord.created_at
+        : null;
+  if (!monolithContent || !monolithCreatedAt) {
+    return null;
+  }
+
+  const monolith: MonolithOccupant = {
+    id: monolithRecord.id,
+    content: monolithContent,
+    valuation: toNumber(monolithRecord.valuation),
+    ownerId:
+      typeof monolithRecord.ownerId === "string"
+        ? monolithRecord.ownerId
+        : typeof monolithRecord.owner_id === "string"
+          ? monolithRecord.owner_id
+          : null,
+    createdAt: monolithCreatedAt,
+    active: monolithRecord.active === true,
+  };
+
+  if (!monolith.active) {
+    return null;
+  }
+
+  const syndicatesRaw = Array.isArray(row.syndicates) ? row.syndicates : [];
+  const syndicates = syndicatesRaw
+    .map((entry) => {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+        return null;
+      }
+
+      const syndicateRecord = entry as Record<string, unknown>;
+      const id = typeof syndicateRecord.id === "string" ? syndicateRecord.id : null;
+      const proposedContent =
+        typeof syndicateRecord.proposedContent === "string"
+          ? syndicateRecord.proposedContent
+          : typeof syndicateRecord.proposed_content === "string"
+            ? syndicateRecord.proposed_content
+            : null;
+      const createdAt =
+        typeof syndicateRecord.createdAt === "string"
+          ? syndicateRecord.createdAt
+          : typeof syndicateRecord.created_at === "string"
+            ? syndicateRecord.created_at
+            : null;
+      const status = syndicateRecord.status;
+      if (
+        !id ||
+        !proposedContent ||
+        !createdAt ||
+        (status !== "active" && status !== "won" && status !== "archived")
+      ) {
+        return null;
+      }
+
+      return {
+        id,
+        proposedContent,
+        totalRaised: toNumber(
+          syndicateRecord.totalRaised ?? syndicateRecord.total_raised,
+        ),
+        status,
+        createdAt,
+      } satisfies Syndicate;
+    })
+    .filter((entry): entry is Syndicate => entry !== null && entry.status === "active");
+
+  return {
+    monolith,
+    syndicates,
+  };
+}
+
 export function useMonolithRealtime(
   initialMonolith: MonolithOccupant,
   initialSyndicates: Syndicate[],
@@ -73,6 +168,28 @@ export function useMonolithRealtime(
       syndicates: initialSyndicates,
     });
   }, [initialMonolith, initialSyndicates]);
+
+  const refreshSnapshot = useCallback(async () => {
+    try {
+      const response = await fetch("/api/monolith/snapshot", {
+        method: "GET",
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        return;
+      }
+
+      const payload = (await response.json()) as unknown;
+      const nextSnapshot = parseSnapshotPayload(payload);
+      if (!nextSnapshot) {
+        return;
+      }
+
+      setSnapshot(nextSnapshot);
+    } catch {
+      // Network failures are ignored; realtime subscription remains primary.
+    }
+  }, []);
 
   useEffect(() => {
     const supabase = getBrowserSupabaseClient();
@@ -145,12 +262,43 @@ export function useMonolithRealtime(
           }));
         },
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          void refreshSnapshot();
+        }
+      });
 
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, []);
+  }, [refreshSnapshot]);
+
+  useEffect(() => {
+    void refreshSnapshot();
+
+    const intervalId = window.setInterval(() => {
+      void refreshSnapshot();
+    }, 6000);
+
+    const handleWindowFocus = () => {
+      void refreshSnapshot();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void refreshSnapshot();
+      }
+    };
+
+    window.addEventListener("focus", handleWindowFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", handleWindowFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [refreshSnapshot]);
 
   return snapshot;
 }
