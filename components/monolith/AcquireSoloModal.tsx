@@ -6,32 +6,35 @@ import { formatUsd } from "@/lib/protocol/pricing";
 
 type AcquireSoloDraft = {
   content: string;
+  bidAmount: number;
 };
 
 type AcquireSoloModalProps = {
   open: boolean;
-  displacementCost: number;
+  minimumBid: number;
   onClose: () => void;
   onAcquire?: (draft: AcquireSoloDraft) => Promise<void> | void;
 };
 
 export function AcquireSoloModal({
   open,
-  displacementCost,
+  minimumBid,
   onClose,
   onAcquire,
 }: AcquireSoloModalProps) {
   const [content, setContent] = useState("");
+  const [bidAmount, setBidAmount] = useState(minimumBid.toFixed(2));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) {
       setContent("");
+      setBidAmount(minimumBid.toFixed(2));
       setIsSubmitting(false);
       setSubmissionError(null);
     }
-  }, [open]);
+  }, [open, minimumBid]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -40,11 +43,22 @@ export function AcquireSoloModal({
       return;
     }
 
+    const numericBidAmount = Number(bidAmount);
+    if (Number.isNaN(numericBidAmount) || numericBidAmount < minimumBid) {
+      setSubmissionError(
+        `Bid must be at least ${formatUsd(minimumBid)} to displace the current leader.`,
+      );
+      return;
+    }
+
     setSubmissionError(null);
     setIsSubmitting(true);
 
     try {
-      await onAcquire?.({ content: content.trim() });
+      await onAcquire?.({
+        content: content.trim(),
+        bidAmount: Number(numericBidAmount.toFixed(2)),
+      });
     } catch (error) {
       const message =
         error instanceof Error
@@ -85,11 +99,10 @@ export function AcquireSoloModal({
             </div>
 
             <p className="mb-4 font-mono text-[0.62rem] uppercase tracking-[0.18em] text-white/75">
-              Displacement cost is fixed at {formatUsd(displacementCost)} for this
-              acquisition.
+              Minimum displacement bid is {formatUsd(minimumBid)}.
             </p>
             <p className="mb-5 font-mono text-[0.58rem] uppercase tracking-[0.18em] text-white/60">
-              Prototype mode: payment settlement will be attached in Stripe Step 4.
+              Optional: Bid higher to set a stronger next valuation floor.
             </p>
 
             <form className="space-y-4" onSubmit={handleSubmit}>
@@ -108,6 +121,27 @@ export function AcquireSoloModal({
                   }}
                   className="field-input resize-none"
                   placeholder="YOUR MESSAGE HERE"
+                />
+              </label>
+
+              <label className="block space-y-2">
+                <span className="ui-label text-[0.65rem]">
+                  Bid Amount (min {formatUsd(minimumBid)})
+                </span>
+                <input
+                  required
+                  type="number"
+                  min={minimumBid}
+                  step="0.01"
+                  value={bidAmount}
+                  onChange={(event) => {
+                    setBidAmount(event.target.value);
+                    if (submissionError) {
+                      setSubmissionError(null);
+                    }
+                  }}
+                  className="field-input"
+                  placeholder={minimumBid.toFixed(2)}
                 />
               </label>
 

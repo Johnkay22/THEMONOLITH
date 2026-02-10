@@ -49,7 +49,7 @@ components/monolith/
   InitializeSyndicateModal.tsx
   MonolithDisplay.tsx
   MonolithExperience.tsx
-  ProtocolRules.tsx
+  ProtocolModal.tsx
   SyndicateLedger.tsx
 
 hooks/

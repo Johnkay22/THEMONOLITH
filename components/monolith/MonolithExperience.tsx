@@ -6,11 +6,11 @@ import { AcquireSoloModal } from "@/components/monolith/AcquireSoloModal";
 import { ControlDeck } from "@/components/monolith/ControlDeck";
 import { InitializeSyndicateModal } from "@/components/monolith/InitializeSyndicateModal";
 import { MonolithDisplay } from "@/components/monolith/MonolithDisplay";
-import { ProtocolRules } from "@/components/monolith/ProtocolRules";
+import { ProtocolModal } from "@/components/monolith/ProtocolModal";
 import { SyndicateLedger } from "@/components/monolith/SyndicateLedger";
 import { useMonolithRealtime } from "@/hooks/useMonolithRealtime";
 import { buildSyndicateLedgerRows } from "@/lib/protocol/normalizers";
-import { calculateDisplacementCost } from "@/lib/protocol/pricing";
+import { calculateDisplacementCost, formatUsd } from "@/lib/protocol/pricing";
 import type { MonolithOccupant, Syndicate } from "@/types/monolith";
 
 type MonolithExperienceProps = {
@@ -25,6 +25,7 @@ export function MonolithExperience({
   const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAcquireSoloModalOpen, setIsAcquireSoloModalOpen] = useState(false);
+  const [isProtocolModalOpen, setIsProtocolModalOpen] = useState(false);
   const snapshot = useMonolithRealtime(initialMonolith, initialSyndicates);
 
   const displacementCost = useMemo(
@@ -66,7 +67,7 @@ export function MonolithExperience({
     router.refresh();
   };
 
-  const handleAcquireSolo = async (draft: { content: string }) => {
+  const handleAcquireSolo = async (draft: { content: string; bidAmount: number }) => {
     const response = await fetch("/api/monolith/acquire-solo", {
       method: "POST",
       headers: {
@@ -74,7 +75,7 @@ export function MonolithExperience({
       },
       body: JSON.stringify({
         content: draft.content,
-        bidAmount: displacementCost,
+        bidAmount: draft.bidAmount,
       }),
     });
 
@@ -101,6 +102,15 @@ export function MonolithExperience({
         <header className="ui-label mb-4">THE MONOLITH</header>
 
         <div className="flex flex-1 flex-col justify-center">
+          <div className="mb-5 space-y-2 text-center">
+            <p className="ui-label text-[0.62rem] text-white/70">
+              CURRENT VALUATION: {formatUsd(snapshot.monolith.valuation)}
+            </p>
+            <p className="ui-label text-[0.62rem] text-white/55">
+              MINIMUM BID: {formatUsd(displacementCost)}
+            </p>
+          </div>
+
           <MonolithDisplay
             content={snapshot.monolith.content}
             transitionKey={snapshot.monolith.id}
@@ -113,12 +123,18 @@ export function MonolithExperience({
           onInitializeSyndicate={() => setIsModalOpen(true)}
         />
 
-        <ProtocolRules />
+        <div className="mb-5 flex justify-end">
+          <button
+            type="button"
+            className="ui-label text-[0.62rem] text-white/70 transition-colors hover:text-white"
+            onClick={() => setIsProtocolModalOpen(true)}
+          >
+            PROTOCOL
+          </button>
+        </div>
 
-        <section className="space-y-3 border-t border-white/20 pt-4 mt-4">
-          <h2 className="ui-label">
-            LEDGER: PENDING ACQUISITIONS ({ledgerRows.length})
-          </h2>
+        <section className="mt-4 space-y-3 border-t border-white/20 pt-4">
+          <h2 className="ui-label">ACTIVE SYNDICATES ({ledgerRows.length})</h2>
           <SyndicateLedger syndicates={ledgerRows} />
         </section>
       </main>
@@ -132,9 +148,14 @@ export function MonolithExperience({
 
       <AcquireSoloModal
         open={isAcquireSoloModalOpen}
-        displacementCost={displacementCost}
+        minimumBid={displacementCost}
         onClose={() => setIsAcquireSoloModalOpen(false)}
         onAcquire={handleAcquireSolo}
+      />
+
+      <ProtocolModal
+        open={isProtocolModalOpen}
+        onClose={() => setIsProtocolModalOpen(false)}
       />
     </>
   );

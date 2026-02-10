@@ -23,11 +23,11 @@ export function ControlDeck({
           onClick={onAcquireSolo}
           aria-label={`Acquire the Monolith solo for ${formatUsd(displacementCost)}`}
         >
-          [ ACQUIRE SOLO —{" "}
+          [ ACQUIRE SOLO (
           <AnimatePresence initial={false} mode="wait">
             <motion.span
               key={displacementCost}
-              className="inline-block min-w-[4.8rem] text-right"
+              className="inline-block min-w-[4.8rem] text-center"
               initial={{ opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
@@ -35,8 +35,8 @@ export function ControlDeck({
             >
               {formatUsd(displacementCost)}
             </motion.span>
-          </AnimatePresence>{" "}
-          ]
+          </AnimatePresence>
+          ) ]
         </button>
         <button
           type="button"

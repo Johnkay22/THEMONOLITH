@@ -8,15 +8,6 @@ type SyndicateLedgerProps = {
   syndicates: SyndicateLedgerRow[];
 };
 
-function previewText(value: string) {
-  const normalized = value.replace(/\s+/g, " ").trim();
-  if (normalized.length <= 28) {
-    return normalized;
-  }
-
-  return `${normalized.slice(0, 25)}...`;
-}
-
 export function SyndicateLedger({ syndicates }: SyndicateLedgerProps) {
   if (syndicates.length === 0) {
     return (
@@ -34,20 +25,25 @@ export function SyndicateLedger({ syndicates }: SyndicateLedgerProps) {
           return (
             <motion.li
               key={syndicate.id}
-              className="ledger-row"
+              className="ledger-row !block space-y-3"
               layout
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
               transition={{ duration: 0.22, ease: "easeOut" }}
             >
-              <span className="truncate">
-                [{` ${previewText(syndicate.proposedContent)} `}]
-              </span>
-              <span className="ml-2 whitespace-nowrap text-right text-white/85">
-                {formatUsd(syndicate.totalRaised)} / {formatUsd(syndicate.target)} (
-                {percentage}%)
-              </span>
+              <p className="truncate text-[0.68rem] tracking-[0.13em] text-white/92">
+                {syndicate.proposedContent}
+              </p>
+              <div className="h-1.5 w-full border border-white/35">
+                <div
+                  className="h-full bg-white"
+                  style={{ width: `${Math.max(0, Math.min(100, percentage))}%` }}
+                />
+              </div>
+              <p className="text-right text-[0.62rem] tracking-[0.13em] text-white/76">
+                {formatUsd(syndicate.totalRaised)} / {formatUsd(syndicate.target)}
+              </p>
             </motion.li>
           );
         })}
