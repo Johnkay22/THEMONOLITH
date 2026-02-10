@@ -33,7 +33,7 @@ create table if not exists public.contributions (
 );
 
 insert into public.monolith_history (content, valuation, active)
-select 'WHO WILL BE FIRST?', 1.00, true
+select 'Who Will Forever Be Known, as the First..?', 1.00, true
 where not exists (
   select 1 from public.monolith_history
 );

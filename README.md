@@ -105,7 +105,7 @@ npm run dev
 
 ## Protocol notes
 
-- Seed occupant is `"WHO WILL BE FIRST?"` with valuation `$1.00`.
+- Seed occupant is `"Who Will Forever Be Known, as the First..?"` with valuation `$1.00`.
 - Displacement cost is calculated as `current valuation + $1.00`.
 - Syndicates are modeled as persistent pools that can auto-coup when threshold is passed.
 - The `/api/syndicates/initialize` route currently records initial escrow directly (temporary backend path before Stripe webhook-first settlement is finalized in Step 4).
