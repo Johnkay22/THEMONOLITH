@@ -78,6 +78,8 @@ export function AcquireSoloModal({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
+          onClick={onClose}
+          aria-hidden="true"
         >
           <motion.div
             className="w-full max-w-lg border border-white bg-[#050505] p-5"
@@ -85,6 +87,10 @@ export function AcquireSoloModal({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 8 }}
             transition={{ duration: 0.24, ease: "easeOut" }}
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Acquire Solo"
           >
             <div className="mb-5 flex items-start justify-between gap-4">
               <h2 className="ui-label text-sm">ACQUIRE SOLO</h2>

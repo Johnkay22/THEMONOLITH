@@ -17,11 +17,26 @@ body {
 @layer components {
   .monolith-display {
     font-family: var(--font-display), "Times New Roman", serif;
-    font-size: clamp(3.2rem, 20vw, 8.8rem);
-    letter-spacing: -0.05em;
-    line-height: 0.83;
+    letter-spacing: -0.06em;
+    line-height: 0.78;
+    max-width: min(98vw, 42rem);
+    overflow-wrap: anywhere;
+    word-break: break-word;
     text-transform: uppercase;
     text-wrap: balance;
+  }
+
+  .monolith-display--hero {
+    font-size: clamp(4.2rem, 23vw, 16rem);
+  }
+
+  .monolith-display--balanced {
+    font-size: clamp(3.7rem, 18.5vw, 12rem);
+  }
+
+  .monolith-display--dense {
+    font-size: clamp(3.15rem, 13.5vw, 8.8rem);
+    line-height: 0.82;
   }
 
   .ui-label {
@@ -75,6 +90,14 @@ body {
     letter-spacing: 0.15em;
     padding: 0.75rem 0.7rem;
     text-transform: uppercase;
+  }
+
+  .valuation-plaque {
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    display: grid;
+    gap: 0.3rem;
+    padding: 0.75rem 0.8rem;
+    text-align: center;
   }
 }
 

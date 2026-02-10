@@ -98,11 +98,11 @@ export function MonolithExperience({
 
   return (
     <>
-      <main className="mx-auto flex min-h-svh w-full max-w-screen-sm flex-col px-5 pb-7 pt-5">
-        <header className="ui-label mb-4">THE MONOLITH</header>
+      <main className="mx-auto flex min-h-svh w-full max-w-screen-sm flex-col px-4 pb-[calc(1.6rem+env(safe-area-inset-bottom))] pt-4 sm:px-5">
+        <header className="ui-label mb-3">THE MONOLITH</header>
 
         <div className="flex flex-1 flex-col justify-center">
-          <div className="mb-5 space-y-2 text-center">
+          <div className="valuation-plaque mb-6">
             <p className="ui-label text-[0.62rem] text-white/70">
               CURRENT VALUATION: {formatUsd(snapshot.monolith.valuation)}
             </p>
@@ -123,7 +123,7 @@ export function MonolithExperience({
           onInitializeSyndicate={() => setIsModalOpen(true)}
         />
 
-        <div className="mb-5 flex justify-end">
+        <div className="mb-4 flex justify-end">
           <button
             type="button"
             className="ui-label text-[0.62rem] text-white/70 transition-colors hover:text-white"
@@ -133,7 +133,7 @@ export function MonolithExperience({
           </button>
         </div>
 
-        <section className="mt-4 space-y-3 border-t border-white/20 pt-4">
+        <section className="mt-3 space-y-3 border-t border-white/20 pt-4">
           <h2 className="ui-label">ACTIVE SYNDICATES ({ledgerRows.length})</h2>
           <SyndicateLedger syndicates={ledgerRows} />
         </section>
