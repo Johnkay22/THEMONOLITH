@@ -118,7 +118,6 @@ export function InitializeSyndicateModal({
                   Proposed Inscription
                 </span>
                 <textarea
-                  required
                   rows={4}
                   maxLength={180}
                   value={proposedContent}
@@ -138,7 +137,6 @@ export function InitializeSyndicateModal({
                   Initial Contribution (min {formatUsd(minimumContribution)})
                 </span>
                 <input
-                  required
                   type="number"
                   min={minimumContribution}
                   step="0.01"

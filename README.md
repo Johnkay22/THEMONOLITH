@@ -71,6 +71,8 @@ lib/
 supabase/
   migrations/202602100001_initial_monolith_schema.sql
   migrations/202602100002_realtime_and_read_policies.sql
+  migrations/202602100003_update_initial_monolith_message.sql
+  migrations/202602100004_backfill_owner_id_column.sql
   seed.sql
 
 types/

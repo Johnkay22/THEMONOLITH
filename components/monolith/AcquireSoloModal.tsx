@@ -115,7 +115,6 @@ export function AcquireSoloModal({
               <label className="block space-y-2">
                 <span className="ui-label text-[0.65rem]">New Inscription</span>
                 <textarea
-                  required
                   rows={4}
                   maxLength={180}
                   value={content}
@@ -135,7 +134,6 @@ export function AcquireSoloModal({
                   Bid Amount (min {formatUsd(minimumBid)})
                 </span>
                 <input
-                  required
                   type="number"
                   min={minimumBid}
                   step="0.01"

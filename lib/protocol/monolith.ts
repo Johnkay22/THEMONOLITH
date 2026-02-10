@@ -54,7 +54,7 @@ export async function getCurrentMonolith() {
 
   const { data, error } = await supabase
     .from("monolith_history")
-    .select("id, content, valuation, owner_id, created_at, active")
+    .select("id, content, valuation, created_at, active")
     .eq("active", true)
     .order("created_at", { ascending: false })
     .limit(1)
@@ -124,7 +124,7 @@ export async function acquireSolo(input: AcquireSoloInput): Promise<AcquireSoloR
 
   const { data: activeRow, error: activeError } = await supabase
     .from("monolith_history")
-    .select("id, content, valuation, owner_id, created_at, active")
+    .select("id, content, valuation, created_at, active")
     .eq("active", true)
     .order("created_at", { ascending: false })
     .limit(1)
@@ -162,7 +162,7 @@ export async function acquireSolo(input: AcquireSoloInput): Promise<AcquireSoloR
       valuation: bidAmount,
       active: true,
     })
-    .select("id, content, valuation, owner_id, created_at, active")
+    .select("id, content, valuation, created_at, active")
     .single();
 
   if (insertError || !insertedMonolith) {
@@ -188,7 +188,7 @@ async function resolveCoupIfEligible(syndicate: Syndicate) {
 
   const { data: currentMonolithRow, error: currentMonolithError } = await supabase
     .from("monolith_history")
-    .select("id, content, valuation, owner_id, created_at, active")
+    .select("id, content, valuation, created_at, active")
     .eq("active", true)
     .order("created_at", { ascending: false })
     .limit(1)
