@@ -3,6 +3,7 @@ import "server-only";
 import type Stripe from "stripe";
 
 async function handleSoloAcquisition(_paymentIntent: Stripe.PaymentIntent) {
+  void _paymentIntent;
   // TODO: Write solo acquisition settlement flow:
   // 1) deactivate active monolith row
   // 2) insert replacement row with valuation=payment amount
@@ -10,6 +11,7 @@ async function handleSoloAcquisition(_paymentIntent: Stripe.PaymentIntent) {
 }
 
 async function handleSyndicateContribution(_paymentIntent: Stripe.PaymentIntent) {
+  void _paymentIntent;
   // TODO: Write syndicate settlement flow:
   // 1) insert contribution row
   // 2) increment syndicate total

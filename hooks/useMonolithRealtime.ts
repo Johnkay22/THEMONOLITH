@@ -14,28 +14,30 @@ function parseRealtimeMonolithRecord(
   payload: RealtimePostgresChangesPayload<{ [key: string]: unknown }>,
 ) {
   const record = payload.new;
-  if (!record || typeof record !== "object") {
+  if (!record || typeof record !== "object" || Array.isArray(record)) {
     return null;
   }
 
-  if (record.active !== true) {
+  const row = record as Record<string, unknown>;
+
+  if (row.active !== true) {
     return null;
   }
 
   if (
-    typeof record.id !== "string" ||
-    typeof record.content !== "string" ||
-    typeof record.created_at !== "string"
+    typeof row.id !== "string" ||
+    typeof row.content !== "string" ||
+    typeof row.created_at !== "string"
   ) {
     return null;
   }
 
   return {
-    id: record.id,
-    content: record.content,
-    valuation: toNumber(record.valuation),
-    ownerId: typeof record.owner_id === "string" ? record.owner_id : null,
-    createdAt: record.created_at,
+    id: row.id,
+    content: row.content,
+    valuation: toNumber(row.valuation),
+    ownerId: typeof row.owner_id === "string" ? row.owner_id : null,
+    createdAt: row.created_at,
     active: true,
   } satisfies MonolithOccupant;
 }
