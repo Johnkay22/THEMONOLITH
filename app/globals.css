@@ -1,0 +1,85 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #050505;
+  --foreground: #ffffff;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--font-ui), "Helvetica Neue", Helvetica, Arial, sans-serif;
+  min-height: 100svh;
+}
+
+@layer components {
+  .monolith-display {
+    font-family: var(--font-display), "Times New Roman", serif;
+    font-size: clamp(3.2rem, 20vw, 8.8rem);
+    letter-spacing: -0.05em;
+    line-height: 0.83;
+    text-transform: uppercase;
+    text-wrap: balance;
+  }
+
+  .ui-label {
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+  }
+
+  .deck-button {
+    border: 1px solid rgba(255, 255, 255, 0.95);
+    padding: 0.95rem 0.85rem;
+    font-size: 0.74rem;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  .deck-button:hover {
+    background: #ffffff;
+    color: #050505;
+  }
+
+  .field-input {
+    width: 100%;
+    border: 1px solid rgba(255, 255, 255, 0.65);
+    background: transparent;
+    color: #ffffff;
+    font-size: 0.85rem;
+    letter-spacing: 0.05em;
+    padding: 0.75rem 0.8rem;
+    outline: none;
+  }
+
+  .field-input:focus {
+    border-color: #ffffff;
+  }
+
+  .field-input::placeholder {
+    color: rgba(255, 255, 255, 0.36);
+  }
+
+  .ledger-row {
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    font-size: 0.66rem;
+    letter-spacing: 0.15em;
+    padding: 0.75rem 0.7rem;
+    text-transform: uppercase;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
