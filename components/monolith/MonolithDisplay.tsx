@@ -63,6 +63,17 @@ export function MonolithDisplay({ content, transitionKey }: MonolithDisplayProps
   }, [fitDisplayText, transitionKey]);
 
   useEffect(() => {
+    if (typeof ResizeObserver === "undefined") {
+      const handleResize = () => {
+        fitDisplayText();
+      };
+
+      window.addEventListener("resize", handleResize);
+      return () => {
+        window.removeEventListener("resize", handleResize);
+      };
+    }
+
     const container = containerRef.current;
     if (!container) {
       return;

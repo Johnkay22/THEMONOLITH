@@ -38,6 +38,16 @@ type AcquireSoloResult = {
 
 export class MonolithValidationError extends Error {}
 
+function isLegacySchemaError(error: unknown) {
+  if (!error || typeof error !== "object" || Array.isArray(error)) {
+    return false;
+  }
+
+  const errorRow = error as Record<string, unknown>;
+  const code = typeof errorRow.code === "string" ? errorRow.code : null;
+  return code === "42P01" || code === "42703";
+}
+
 function normalizeProposedContent(value: string) {
   return value.replace(/\s+/g, " ").trim();
 }
@@ -242,6 +252,51 @@ async function resolveCoupIfEligible(syndicate: Syndicate) {
   return true;
 }
 
+async function insertInitialContribution(
+  supabase: NonNullable<ReturnType<typeof getServiceRoleSupabaseClient>>,
+  syndicateId: string,
+  amount: number,
+  initialStripeSessionId: string,
+) {
+  let stripeSessionId = initialStripeSessionId;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const { error } = await supabase.from("contributions").insert({
+      syndicate_id: syndicateId,
+      amount,
+      stripe_session_id: stripeSessionId,
+    });
+
+    if (!error) {
+      return {
+        recorded: true,
+      } as const;
+    }
+
+    if (isLegacySchemaError(error)) {
+      return {
+        recorded: false,
+      } as const;
+    }
+
+    const errorCode =
+      typeof (error as { code?: unknown }).code === "string"
+        ? (error as { code: string }).code
+        : null;
+    if (errorCode === "23505") {
+      stripeSessionId = `prototype_${crypto.randomUUID()}`;
+      continue;
+    }
+
+    const message =
+      typeof (error as { message?: unknown }).message === "string"
+        ? (error as { message: string }).message
+        : "unknown database error";
+    throw new Error(`Failed to record initial contribution: ${message}`);
+  }
+
+  throw new Error("Failed to record initial contribution after retry.");
+}
+
 export async function initializeSyndicate(
   input: InitializeSyndicateInput,
 ): Promise<InitializeSyndicateResult> {
@@ -290,16 +345,12 @@ export async function initializeSyndicate(
 
   const stripeSessionId =
     input.stripeSessionId?.trim() || `prototype_${crypto.randomUUID()}`;
-  const { error: contributionError } = await supabase.from("contributions").insert({
-    syndicate_id: syndicateRow.id,
-    amount: initialContribution,
-    stripe_session_id: stripeSessionId,
-  });
-
-  if (contributionError) {
-    await supabase.from("syndicates").update({ status: "archived" }).eq("id", syndicateRow.id);
-    throw new Error("Failed to record initial contribution.");
-  }
+  await insertInitialContribution(
+    supabase,
+    syndicateRow.id,
+    initialContribution,
+    stripeSessionId,
+  );
 
   const syndicate = normalizeSyndicateRecord(
     syndicateRow as Record<string, unknown>,
