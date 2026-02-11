@@ -16,10 +16,12 @@ body {
 
 @layer components {
   .monolith-display {
+    display: inline-block;
     font-family: var(--font-display), "Times New Roman", serif;
-    letter-spacing: -0.06em;
+    letter-spacing: -0.05em;
     line-height: 0.78;
     max-width: min(98vw, 42rem);
+    padding-inline: 0.08em;
     overflow-wrap: normal;
     word-break: normal;
     hyphens: none;

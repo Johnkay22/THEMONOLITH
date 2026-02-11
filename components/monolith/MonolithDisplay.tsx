@@ -42,10 +42,12 @@ export function MonolithDisplay({ content, transitionKey }: MonolithDisplayProps
     while (low <= high) {
       const mid = Math.floor((low + high) / 2);
       text.style.fontSize = `${mid}px`;
+      const horizontalSafety = Math.max(12, Math.floor(mid * 0.11));
+      const verticalSafety = Math.max(4, Math.floor(mid * 0.03));
 
       const fits =
-        text.scrollWidth <= container.clientWidth &&
-        text.scrollHeight <= container.clientHeight;
+        text.scrollWidth + horizontalSafety <= container.clientWidth &&
+        text.scrollHeight + verticalSafety <= container.clientHeight;
 
       if (fits) {
         best = mid;
@@ -92,7 +94,7 @@ export function MonolithDisplay({ content, transitionKey }: MonolithDisplayProps
   return (
     <section
       ref={containerRef}
-      className="relative flex h-[58svh] min-h-[17rem] max-h-[65svh] items-center justify-center overflow-hidden px-1"
+      className="relative flex h-[58svh] min-h-[17rem] max-h-[65svh] items-center justify-center overflow-hidden px-2 sm:px-3"
     >
       <AnimatePresence mode="wait">
         <motion.h1
