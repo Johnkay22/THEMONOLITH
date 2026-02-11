@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { acquireSolo, MonolithValidationError } from "@/lib/protocol/monolith";
+import {
+  acquireSolo,
+  getLandingSnapshot,
+  MonolithValidationError,
+} from "@/lib/protocol/monolith";
 
 type AcquireSoloPayload = {
   content: string;
@@ -32,7 +36,14 @@ export async function POST(request: Request) {
       content: payload.content,
       bidAmount: payload.bidAmount,
     });
-    return NextResponse.json(result, { status: 200 });
+    const snapshot = await getLandingSnapshot();
+    return NextResponse.json(
+      {
+        ...result,
+        snapshot,
+      },
+      { status: 200 },
+    );
   } catch (error) {
     if (error instanceof MonolithValidationError) {
       return NextResponse.json({ error: error.message }, { status: 400 });

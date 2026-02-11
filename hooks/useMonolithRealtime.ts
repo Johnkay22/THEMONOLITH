@@ -74,6 +74,10 @@ function parseSnapshotPayload(payload: unknown): MonolithSnapshot | null {
     return null;
   }
 
+  if (monolithRecord.id === "seed-monolith") {
+    return null;
+  }
+
   const monolithContent =
     typeof monolithRecord.content === "string" ? monolithRecord.content : null;
   const monolithCreatedAt =
@@ -191,6 +195,24 @@ export function useMonolithRealtime(
     }
   }, []);
 
+  const applySnapshot = useCallback((nextSnapshot: MonolithSnapshot) => {
+    setSnapshot(nextSnapshot);
+  }, []);
+
+  const applyMonolith = useCallback((nextMonolith: MonolithOccupant) => {
+    setSnapshot((previous) => ({
+      ...previous,
+      monolith: nextMonolith,
+    }));
+  }, []);
+
+  const applySyndicate = useCallback((nextSyndicate: Syndicate) => {
+    setSnapshot((previous) => ({
+      ...previous,
+      syndicates: upsertActiveSyndicate(previous.syndicates, nextSyndicate),
+    }));
+  }, []);
+
   useEffect(() => {
     const supabase = getBrowserSupabaseClient();
     if (!supabase) {
@@ -303,5 +325,8 @@ export function useMonolithRealtime(
   return {
     snapshot,
     refreshSnapshot,
+    applySnapshot,
+    applyMonolith,
+    applySyndicate,
   };
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   contributeToSyndicate,
+  getLandingSnapshot,
   MonolithValidationError,
 } from "@/lib/protocol/monolith";
 
@@ -38,7 +39,14 @@ export async function POST(request: Request) {
       syndicateId: payload.syndicateId.trim(),
       amount: payload.amount,
     });
-    return NextResponse.json(result, { status: 200 });
+    const snapshot = await getLandingSnapshot();
+    return NextResponse.json(
+      {
+        ...result,
+        snapshot,
+      },
+      { status: 200 },
+    );
   } catch (error) {
     if (error instanceof MonolithValidationError) {
       return NextResponse.json({ error: error.message }, { status: 400 });

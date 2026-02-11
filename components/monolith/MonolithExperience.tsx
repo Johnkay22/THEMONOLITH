@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { AcquireSoloModal } from "@/components/monolith/AcquireSoloModal";
 import { ContributeSyndicateModal } from "@/components/monolith/ContributeSyndicateModal";
 import { ControlDeck } from "@/components/monolith/ControlDeck";
@@ -12,7 +11,12 @@ import { SyndicateLedger } from "@/components/monolith/SyndicateLedger";
 import { useMonolithRealtime } from "@/hooks/useMonolithRealtime";
 import { buildSyndicateLedgerRows } from "@/lib/protocol/normalizers";
 import { calculateDisplacementCost, formatUsd } from "@/lib/protocol/pricing";
-import type { MonolithOccupant, Syndicate, SyndicateLedgerRow } from "@/types/monolith";
+import type {
+  MonolithOccupant,
+  MonolithSnapshot,
+  Syndicate,
+  SyndicateLedgerRow,
+} from "@/types/monolith";
 
 type MonolithExperienceProps = {
   initialMonolith: MonolithOccupant;
@@ -23,14 +27,14 @@ export function MonolithExperience({
   initialMonolith,
   initialSyndicates,
 }: MonolithExperienceProps) {
-  const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAcquireSoloModalOpen, setIsAcquireSoloModalOpen] = useState(false);
   const [isProtocolModalOpen, setIsProtocolModalOpen] = useState(false);
   const [selectedSyndicateId, setSelectedSyndicateId] = useState<string | null>(
     null,
   );
-  const { snapshot, refreshSnapshot } = useMonolithRealtime(
+  const { snapshot, refreshSnapshot, applySnapshot, applyMonolith, applySyndicate } =
+    useMonolithRealtime(
     initialMonolith,
     initialSyndicates,
   );
@@ -64,9 +68,19 @@ export function MonolithExperience({
       body: JSON.stringify(draft),
     });
 
-    let payload: { error?: string } | null = null;
+    let payload:
+      | {
+          error?: string;
+          syndicate?: Syndicate;
+          snapshot?: MonolithSnapshot;
+        }
+      | null = null;
     try {
-      payload = (await response.json()) as { error?: string };
+      payload = (await response.json()) as {
+        error?: string;
+        syndicate?: Syndicate;
+        snapshot?: MonolithSnapshot;
+      };
     } catch {
       payload = null;
     }
@@ -77,9 +91,14 @@ export function MonolithExperience({
       );
     }
 
+    if (payload?.snapshot && payload.snapshot.monolith.id !== "seed-monolith") {
+      applySnapshot(payload.snapshot);
+    } else if (payload?.syndicate) {
+      applySyndicate(payload.syndicate);
+    }
+
     setIsModalOpen(false);
     await refreshSnapshot();
-    router.refresh();
   };
 
   const handleAcquireSolo = async (draft: { content: string; bidAmount: number }) => {
@@ -94,9 +113,19 @@ export function MonolithExperience({
       }),
     });
 
-    let payload: { error?: string } | null = null;
+    let payload:
+      | {
+          error?: string;
+          monolith?: MonolithOccupant;
+          snapshot?: MonolithSnapshot;
+        }
+      | null = null;
     try {
-      payload = (await response.json()) as { error?: string };
+      payload = (await response.json()) as {
+        error?: string;
+        monolith?: MonolithOccupant;
+        snapshot?: MonolithSnapshot;
+      };
     } catch {
       payload = null;
     }
@@ -107,9 +136,14 @@ export function MonolithExperience({
       );
     }
 
+    if (payload?.snapshot && payload.snapshot.monolith.id !== "seed-monolith") {
+      applySnapshot(payload.snapshot);
+    } else if (payload?.monolith) {
+      applyMonolith(payload.monolith);
+    }
+
     setIsAcquireSoloModalOpen(false);
     await refreshSnapshot();
-    router.refresh();
   };
 
   const handleContributeSyndicate = async (draft: {
@@ -124,9 +158,19 @@ export function MonolithExperience({
       body: JSON.stringify(draft),
     });
 
-    let payload: { error?: string } | null = null;
+    let payload:
+      | {
+          error?: string;
+          syndicate?: Syndicate;
+          snapshot?: MonolithSnapshot;
+        }
+      | null = null;
     try {
-      payload = (await response.json()) as { error?: string };
+      payload = (await response.json()) as {
+        error?: string;
+        syndicate?: Syndicate;
+        snapshot?: MonolithSnapshot;
+      };
     } catch {
       payload = null;
     }
@@ -137,9 +181,14 @@ export function MonolithExperience({
       );
     }
 
+    if (payload?.snapshot && payload.snapshot.monolith.id !== "seed-monolith") {
+      applySnapshot(payload.snapshot);
+    } else if (payload?.syndicate) {
+      applySyndicate(payload.syndicate);
+    }
+
     setSelectedSyndicateId(null);
     await refreshSnapshot();
-    router.refresh();
   };
 
   return (
