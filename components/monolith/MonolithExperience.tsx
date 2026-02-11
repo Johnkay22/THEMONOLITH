@@ -56,6 +56,12 @@ export function MonolithExperience({
     [ledgerRows, selectedSyndicateId],
   );
 
+  const queueSnapshotReconciliation = () => {
+    window.setTimeout(() => {
+      void refreshSnapshot();
+    }, 900);
+  };
+
   const handleInitializeSyndicate = async (draft: {
     proposedContent: string;
     initialContribution: number;
@@ -91,14 +97,25 @@ export function MonolithExperience({
       );
     }
 
-    if (payload?.snapshot && payload.snapshot.monolith.id !== "seed-monolith") {
-      applySnapshot(payload.snapshot);
-    } else if (payload?.syndicate) {
+    if (payload?.syndicate) {
       applySyndicate(payload.syndicate);
     }
 
+    const snapshotMonolithTimestamp =
+      payload?.snapshot && payload.snapshot.monolith.id !== "seed-monolith"
+        ? Date.parse(payload.snapshot.monolith.createdAt)
+        : Number.NaN;
+    const currentMonolithTimestamp = Date.parse(snapshot.monolith.createdAt);
+    if (
+      payload?.snapshot &&
+      !Number.isNaN(snapshotMonolithTimestamp) &&
+      snapshotMonolithTimestamp >= currentMonolithTimestamp
+    ) {
+      applySnapshot(payload.snapshot);
+    }
+
     setIsModalOpen(false);
-    await refreshSnapshot();
+    queueSnapshotReconciliation();
   };
 
   const handleAcquireSolo = async (draft: { content: string; bidAmount: number }) => {
@@ -136,14 +153,29 @@ export function MonolithExperience({
       );
     }
 
-    if (payload?.snapshot && payload.snapshot.monolith.id !== "seed-monolith") {
-      applySnapshot(payload.snapshot);
-    } else if (payload?.monolith) {
+    if (payload?.monolith) {
       applyMonolith(payload.monolith);
     }
 
+    const payloadMonolithTimestamp =
+      payload?.monolith && typeof payload.monolith.createdAt === "string"
+        ? Date.parse(payload.monolith.createdAt)
+        : Number.NaN;
+    const snapshotMonolithTimestamp =
+      payload?.snapshot && payload.snapshot.monolith.id !== "seed-monolith"
+        ? Date.parse(payload.snapshot.monolith.createdAt)
+        : Number.NaN;
+    if (
+      payload?.snapshot &&
+      !Number.isNaN(snapshotMonolithTimestamp) &&
+      (Number.isNaN(payloadMonolithTimestamp) ||
+        snapshotMonolithTimestamp >= payloadMonolithTimestamp)
+    ) {
+      applySnapshot(payload.snapshot);
+    }
+
     setIsAcquireSoloModalOpen(false);
-    await refreshSnapshot();
+    queueSnapshotReconciliation();
   };
 
   const handleContributeSyndicate = async (draft: {
@@ -181,14 +213,25 @@ export function MonolithExperience({
       );
     }
 
-    if (payload?.snapshot && payload.snapshot.monolith.id !== "seed-monolith") {
-      applySnapshot(payload.snapshot);
-    } else if (payload?.syndicate) {
+    if (payload?.syndicate) {
       applySyndicate(payload.syndicate);
     }
 
+    const snapshotMonolithTimestamp =
+      payload?.snapshot && payload.snapshot.monolith.id !== "seed-monolith"
+        ? Date.parse(payload.snapshot.monolith.createdAt)
+        : Number.NaN;
+    const currentMonolithTimestamp = Date.parse(snapshot.monolith.createdAt);
+    if (
+      payload?.snapshot &&
+      !Number.isNaN(snapshotMonolithTimestamp) &&
+      snapshotMonolithTimestamp >= currentMonolithTimestamp
+    ) {
+      applySnapshot(payload.snapshot);
+    }
+
     setSelectedSyndicateId(null);
-    await refreshSnapshot();
+    queueSnapshotReconciliation();
   };
 
   return (
