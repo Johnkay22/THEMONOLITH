@@ -31,19 +31,12 @@ export async function POST(request: Request) {
     );
   }
 
+  let result;
   try {
-    const result = await acquireSolo({
+    result = await acquireSolo({
       content: payload.content,
       bidAmount: payload.bidAmount,
     });
-    const snapshot = await getLandingSnapshot();
-    return NextResponse.json(
-      {
-        ...result,
-        snapshot,
-      },
-      { status: 200 },
-    );
   } catch (error) {
     console.error("[api/monolith/acquire-solo] write failed", {
       payload,
@@ -57,4 +50,22 @@ export async function POST(request: Request) {
       error instanceof Error ? error.message : "Failed to acquire monolith.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
+
+  let snapshot = null;
+  try {
+    snapshot = await getLandingSnapshot();
+  } catch (snapshotError) {
+    console.error("[api/monolith/acquire-solo] snapshot read failed", {
+      payload,
+      snapshotError,
+    });
+  }
+
+  return NextResponse.json(
+    {
+      ...result,
+      snapshot,
+    },
+    { status: 200 },
+  );
 }

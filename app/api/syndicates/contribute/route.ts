@@ -34,19 +34,12 @@ export async function POST(request: Request) {
     );
   }
 
+  let result;
   try {
-    const result = await contributeToSyndicate({
+    result = await contributeToSyndicate({
       syndicateId: payload.syndicateId.trim(),
       amount: payload.amount,
     });
-    const snapshot = await getLandingSnapshot();
-    return NextResponse.json(
-      {
-        ...result,
-        snapshot,
-      },
-      { status: 200 },
-    );
   } catch (error) {
     console.error("[api/syndicates/contribute] write failed", {
       payload,
@@ -62,4 +55,22 @@ export async function POST(request: Request) {
         : "Failed to contribute to syndicate.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
+
+  let snapshot = null;
+  try {
+    snapshot = await getLandingSnapshot();
+  } catch (snapshotError) {
+    console.error("[api/syndicates/contribute] snapshot read failed", {
+      payload,
+      snapshotError,
+    });
+  }
+
+  return NextResponse.json(
+    {
+      ...result,
+      snapshot,
+    },
+    { status: 200 },
+  );
 }

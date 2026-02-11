@@ -37,20 +37,12 @@ export async function POST(request: Request) {
     );
   }
 
+  let result;
   try {
-    const result = await initializeSyndicate({
+    result = await initializeSyndicate({
       proposedContent: payload.proposedContent,
       initialContribution: payload.initialContribution,
     });
-
-    const snapshot = await getLandingSnapshot();
-    return NextResponse.json(
-      {
-        ...result,
-        snapshot,
-      },
-      { status: 200 },
-    );
   } catch (error) {
     console.error("[api/syndicates/initialize] write failed", {
       payload,
@@ -66,4 +58,22 @@ export async function POST(request: Request) {
         : "Failed to initialize syndicate.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
+
+  let snapshot = null;
+  try {
+    snapshot = await getLandingSnapshot();
+  } catch (snapshotError) {
+    console.error("[api/syndicates/initialize] snapshot read failed", {
+      payload,
+      snapshotError,
+    });
+  }
+
+  return NextResponse.json(
+    {
+      ...result,
+      snapshot,
+    },
+    { status: 200 },
+  );
 }

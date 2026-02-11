@@ -189,7 +189,20 @@ export function useMonolithRealtime(
         return;
       }
 
-      setSnapshot(nextSnapshot);
+      setSnapshot((previousSnapshot) => {
+        const previousTimestamp = Date.parse(previousSnapshot.monolith.createdAt);
+        const nextTimestamp = Date.parse(nextSnapshot.monolith.createdAt);
+
+        if (
+          !Number.isNaN(previousTimestamp) &&
+          !Number.isNaN(nextTimestamp) &&
+          nextTimestamp < previousTimestamp
+        ) {
+          return previousSnapshot;
+        }
+
+        return nextSnapshot;
+      });
     } catch {
       // Network failures are ignored; realtime subscription remains primary.
     }
