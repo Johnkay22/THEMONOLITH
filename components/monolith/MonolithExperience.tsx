@@ -23,6 +23,11 @@ type MonolithExperienceProps = {
   initialSyndicates: Syndicate[];
 };
 
+type ToastState = {
+  id: string;
+  message: string;
+};
+
 export function MonolithExperience({
   initialMonolith,
   initialSyndicates,
@@ -33,6 +38,7 @@ export function MonolithExperience({
   const [selectedSyndicateId, setSelectedSyndicateId] = useState<string | null>(
     null,
   );
+  const [toast, setToast] = useState<ToastState | null>(null);
   const { snapshot, refreshSnapshot, applySnapshot, applyMonolith, applySyndicate } =
     useMonolithRealtime(
     initialMonolith,
@@ -62,181 +68,246 @@ export function MonolithExperience({
     }, 900);
   };
 
+  const cloneSnapshot = (value: MonolithSnapshot): MonolithSnapshot => ({
+    monolith: { ...value.monolith },
+    syndicates: value.syndicates.map((syndicate) => ({ ...syndicate })),
+  });
+
+  const showTransactionFailedToast = (details?: string) => {
+    const message = details?.trim()
+      ? `Transaction Failed: ${details}`
+      : "Transaction Failed";
+    const nextToast = {
+      id: crypto.randomUUID(),
+      message,
+    };
+    setToast(nextToast);
+    window.setTimeout(() => {
+      setToast((currentToast) =>
+        currentToast?.id === nextToast.id ? null : currentToast,
+      );
+    }, 3600);
+  };
+
   const handleInitializeSyndicate = async (draft: {
     proposedContent: string;
     initialContribution: number;
   }) => {
-    const response = await fetch("/api/syndicates/initialize", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(draft),
-    });
+    const previousSnapshot = cloneSnapshot(snapshot);
+    try {
+      const response = await fetch("/api/syndicates/initialize", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(draft),
+      });
 
-    let payload:
-      | {
+      let payload:
+        | {
+            error?: string;
+            syndicate?: Syndicate;
+            snapshot?: MonolithSnapshot;
+          }
+        | null = null;
+      try {
+        payload = (await response.json()) as {
           error?: string;
           syndicate?: Syndicate;
           snapshot?: MonolithSnapshot;
-        }
-      | null = null;
-    try {
-      payload = (await response.json()) as {
-        error?: string;
-        syndicate?: Syndicate;
-        snapshot?: MonolithSnapshot;
-      };
-    } catch {
-      payload = null;
-    }
+        };
+      } catch {
+        payload = null;
+      }
 
-    if (!response.ok) {
-      throw new Error(
-        payload?.error ?? "Failed to initialize syndicate. Please try again.",
-      );
-    }
+      if (!response.ok) {
+        throw new Error(
+          payload?.error ?? "Failed to initialize syndicate. Please try again.",
+        );
+      }
 
-    if (payload?.syndicate) {
-      applySyndicate(payload.syndicate);
-    }
+      if (payload?.syndicate) {
+        applySyndicate(payload.syndicate);
+      }
 
-    const snapshotMonolithTimestamp =
-      payload?.snapshot && payload.snapshot.monolith.id !== "seed-monolith"
-        ? Date.parse(payload.snapshot.monolith.createdAt)
-        : Number.NaN;
-    const currentMonolithTimestamp = Date.parse(snapshot.monolith.createdAt);
-    if (
-      payload?.snapshot &&
-      !Number.isNaN(snapshotMonolithTimestamp) &&
-      snapshotMonolithTimestamp >= currentMonolithTimestamp
-    ) {
-      applySnapshot(payload.snapshot);
-    }
+      const snapshotMonolithTimestamp =
+        payload?.snapshot && payload.snapshot.monolith.id !== "seed-monolith"
+          ? Date.parse(payload.snapshot.monolith.createdAt)
+          : Number.NaN;
+      const currentMonolithTimestamp = Date.parse(snapshot.monolith.createdAt);
+      if (
+        payload?.snapshot &&
+        !Number.isNaN(snapshotMonolithTimestamp) &&
+        snapshotMonolithTimestamp >= currentMonolithTimestamp
+      ) {
+        applySnapshot(payload.snapshot);
+      }
 
-    setIsModalOpen(false);
-    queueSnapshotReconciliation();
+      setIsModalOpen(false);
+      queueSnapshotReconciliation();
+    } catch (error) {
+      applySnapshot(previousSnapshot);
+      const message =
+        error instanceof Error ? error.message : "Failed to initialize syndicate.";
+      showTransactionFailedToast(message);
+      throw error;
+    }
   };
 
   const handleAcquireSolo = async (draft: { content: string; bidAmount: number }) => {
-    const response = await fetch("/api/monolith/acquire-solo", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        content: draft.content,
-        bidAmount: draft.bidAmount,
-      }),
-    });
+    const previousSnapshot = cloneSnapshot(snapshot);
+    const optimisticMonolith: MonolithOccupant = {
+      id: `optimistic-${crypto.randomUUID()}`,
+      content: draft.content,
+      valuation: draft.bidAmount,
+      ownerId: null,
+      createdAt: new Date().toISOString(),
+      active: true,
+    };
+    applyMonolith(optimisticMonolith);
 
-    let payload:
-      | {
+    try {
+      const response = await fetch("/api/monolith/acquire-solo", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          content: draft.content,
+          bidAmount: draft.bidAmount,
+        }),
+      });
+
+      let payload:
+        | {
+            error?: string;
+            monolith?: MonolithOccupant;
+            snapshot?: MonolithSnapshot;
+          }
+        | null = null;
+      try {
+        payload = (await response.json()) as {
           error?: string;
           monolith?: MonolithOccupant;
           snapshot?: MonolithSnapshot;
-        }
-      | null = null;
-    try {
-      payload = (await response.json()) as {
-        error?: string;
-        monolith?: MonolithOccupant;
-        snapshot?: MonolithSnapshot;
-      };
-    } catch {
-      payload = null;
-    }
+        };
+      } catch {
+        payload = null;
+      }
 
-    if (!response.ok) {
-      throw new Error(
-        payload?.error ?? "Failed to acquire the monolith. Please try again.",
-      );
-    }
+      if (!response.ok) {
+        throw new Error(
+          payload?.error ?? "Failed to acquire the monolith. Please try again.",
+        );
+      }
 
-    if (payload?.monolith) {
-      applyMonolith(payload.monolith);
-    }
+      if (payload?.monolith) {
+        applyMonolith(payload.monolith);
+      }
 
-    const payloadMonolithTimestamp =
-      payload?.monolith && typeof payload.monolith.createdAt === "string"
-        ? Date.parse(payload.monolith.createdAt)
-        : Number.NaN;
-    const snapshotMonolithTimestamp =
-      payload?.snapshot && payload.snapshot.monolith.id !== "seed-monolith"
-        ? Date.parse(payload.snapshot.monolith.createdAt)
-        : Number.NaN;
-    if (
-      payload?.snapshot &&
-      !Number.isNaN(snapshotMonolithTimestamp) &&
-      (Number.isNaN(payloadMonolithTimestamp) ||
-        snapshotMonolithTimestamp >= payloadMonolithTimestamp)
-    ) {
-      applySnapshot(payload.snapshot);
-    }
+      const payloadMonolithTimestamp =
+        payload?.monolith && typeof payload.monolith.createdAt === "string"
+          ? Date.parse(payload.monolith.createdAt)
+          : Number.NaN;
+      const snapshotMonolithTimestamp =
+        payload?.snapshot && payload.snapshot.monolith.id !== "seed-monolith"
+          ? Date.parse(payload.snapshot.monolith.createdAt)
+          : Number.NaN;
+      if (
+        payload?.snapshot &&
+        !Number.isNaN(snapshotMonolithTimestamp) &&
+        (Number.isNaN(payloadMonolithTimestamp) ||
+          snapshotMonolithTimestamp >= payloadMonolithTimestamp)
+      ) {
+        applySnapshot(payload.snapshot);
+      }
 
-    setIsAcquireSoloModalOpen(false);
-    queueSnapshotReconciliation();
+      setIsAcquireSoloModalOpen(false);
+      queueSnapshotReconciliation();
+    } catch (error) {
+      applySnapshot(previousSnapshot);
+      const message =
+        error instanceof Error ? error.message : "Failed to acquire the monolith.";
+      showTransactionFailedToast(message);
+      throw error;
+    }
   };
 
   const handleContributeSyndicate = async (draft: {
     syndicateId: string;
     amount: number;
   }) => {
-    const response = await fetch("/api/syndicates/contribute", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(draft),
-    });
+    const previousSnapshot = cloneSnapshot(snapshot);
+    try {
+      const response = await fetch("/api/syndicates/contribute", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(draft),
+      });
 
-    let payload:
-      | {
+      let payload:
+        | {
+            error?: string;
+            syndicate?: Syndicate;
+            snapshot?: MonolithSnapshot;
+          }
+        | null = null;
+      try {
+        payload = (await response.json()) as {
           error?: string;
           syndicate?: Syndicate;
           snapshot?: MonolithSnapshot;
-        }
-      | null = null;
-    try {
-      payload = (await response.json()) as {
-        error?: string;
-        syndicate?: Syndicate;
-        snapshot?: MonolithSnapshot;
-      };
-    } catch {
-      payload = null;
-    }
+        };
+      } catch {
+        payload = null;
+      }
 
-    if (!response.ok) {
-      throw new Error(
-        payload?.error ?? "Failed to contribute to syndicate. Please try again.",
-      );
-    }
+      if (!response.ok) {
+        throw new Error(
+          payload?.error ?? "Failed to contribute to syndicate. Please try again.",
+        );
+      }
 
-    if (payload?.syndicate) {
-      applySyndicate(payload.syndicate);
-    }
+      if (payload?.syndicate) {
+        applySyndicate(payload.syndicate);
+      }
 
-    const snapshotMonolithTimestamp =
-      payload?.snapshot && payload.snapshot.monolith.id !== "seed-monolith"
-        ? Date.parse(payload.snapshot.monolith.createdAt)
-        : Number.NaN;
-    const currentMonolithTimestamp = Date.parse(snapshot.monolith.createdAt);
-    if (
-      payload?.snapshot &&
-      !Number.isNaN(snapshotMonolithTimestamp) &&
-      snapshotMonolithTimestamp >= currentMonolithTimestamp
-    ) {
-      applySnapshot(payload.snapshot);
-    }
+      const snapshotMonolithTimestamp =
+        payload?.snapshot && payload.snapshot.monolith.id !== "seed-monolith"
+          ? Date.parse(payload.snapshot.monolith.createdAt)
+          : Number.NaN;
+      const currentMonolithTimestamp = Date.parse(snapshot.monolith.createdAt);
+      if (
+        payload?.snapshot &&
+        !Number.isNaN(snapshotMonolithTimestamp) &&
+        snapshotMonolithTimestamp >= currentMonolithTimestamp
+      ) {
+        applySnapshot(payload.snapshot);
+      }
 
-    setSelectedSyndicateId(null);
-    queueSnapshotReconciliation();
+      setSelectedSyndicateId(null);
+      queueSnapshotReconciliation();
+    } catch (error) {
+      applySnapshot(previousSnapshot);
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to contribute to syndicate.";
+      showTransactionFailedToast(message);
+      throw error;
+    }
   };
 
   return (
     <>
       <main className="mx-auto flex min-h-svh w-full max-w-screen-sm flex-col px-4 pb-[calc(1.6rem+env(safe-area-inset-bottom))] pt-4 sm:px-5">
+        {toast ? (
+          <div className="mb-3 border border-white bg-black/90 px-3 py-2 font-mono text-[0.62rem] uppercase tracking-[0.15em] text-white/90">
+            [ {toast.message} ]
+          </div>
+        ) : null}
         <header className="ui-label mb-3">THE MONOLITH</header>
 
         <div className="flex flex-1 flex-col justify-center">

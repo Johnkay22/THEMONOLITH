@@ -48,6 +48,10 @@ export async function POST(request: Request) {
       { status: 200 },
     );
   } catch (error) {
+    console.error("[api/syndicates/contribute] write failed", {
+      payload,
+      error,
+    });
     if (error instanceof MonolithValidationError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
