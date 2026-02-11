@@ -35,6 +35,7 @@ app/
     acquire-solo/route.ts
     snapshot/route.ts
   api/syndicates/
+    contribute/route.ts
     initialize/route.ts
   api/stripe/
     create-payment-intent/route.ts
@@ -46,6 +47,7 @@ app/
 components/monolith/
   AcquireSoloModal.tsx
   ControlDeck.tsx
+  ContributeSyndicateModal.tsx
   InitializeSyndicateModal.tsx
   MonolithDisplay.tsx
   MonolithExperience.tsx

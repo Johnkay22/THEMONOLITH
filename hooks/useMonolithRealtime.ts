@@ -300,5 +300,8 @@ export function useMonolithRealtime(
     };
   }, [refreshSnapshot]);
 
-  return snapshot;
+  return {
+    snapshot,
+    refreshSnapshot,
+  };
 }

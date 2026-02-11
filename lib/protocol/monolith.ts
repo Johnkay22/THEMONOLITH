@@ -27,6 +27,17 @@ type InitializeSyndicateResult = {
   coupExecuted: boolean;
 };
 
+type ContributeToSyndicateInput = {
+  syndicateId: string;
+  amount: number;
+  stripeSessionId?: string;
+};
+
+type ContributeToSyndicateResult = {
+  syndicate: Syndicate;
+  coupExecuted: boolean;
+};
+
 type AcquireSoloInput = {
   content: string;
   bidAmount: number;
@@ -295,6 +306,95 @@ async function insertInitialContribution(
   }
 
   throw new Error("Failed to record initial contribution after retry.");
+}
+
+export async function contributeToSyndicate(
+  input: ContributeToSyndicateInput,
+): Promise<ContributeToSyndicateResult> {
+  const supabase = getServiceRoleSupabaseClient();
+  if (!supabase) {
+    throw new Error(
+      "Supabase service role key is missing. Set SUPABASE_SERVICE_ROLE_KEY to enable syndicate contributions.",
+    );
+  }
+
+  const amount = normalizeContribution(input.amount);
+  if (
+    Number.isNaN(amount) ||
+    !Number.isFinite(amount) ||
+    amount < MINIMUM_CONTRIBUTION_USD
+  ) {
+    throw new MonolithValidationError(
+      `Contribution must be at least $${MINIMUM_CONTRIBUTION_USD.toFixed(2)}.`,
+    );
+  }
+
+  const { data: currentSyndicateRow, error: readSyndicateError } = await supabase
+    .from("syndicates")
+    .select("id, proposed_content, total_raised, status, created_at")
+    .eq("id", input.syndicateId)
+    .maybeSingle();
+
+  if (readSyndicateError || !currentSyndicateRow) {
+    throw new Error("Syndicate not found.");
+  }
+
+  const currentSyndicate = normalizeSyndicateRecord(
+    currentSyndicateRow as Record<string, unknown>,
+  );
+  if (!currentSyndicate) {
+    throw new Error("Syndicate payload is malformed.");
+  }
+
+  if (currentSyndicate.status !== "active") {
+    throw new MonolithValidationError("This syndicate is no longer active.");
+  }
+
+  const nextRaisedTotal = normalizeContribution(currentSyndicate.totalRaised + amount);
+  const { data: updatedSyndicateRow, error: updateSyndicateError } = await supabase
+    .from("syndicates")
+    .update({
+      total_raised: nextRaisedTotal,
+    })
+    .eq("id", currentSyndicate.id)
+    .eq("status", "active")
+    .select("id, proposed_content, total_raised, status, created_at")
+    .single();
+
+  if (updateSyndicateError || !updatedSyndicateRow) {
+    throw new Error("Failed to update syndicate total.");
+  }
+
+  const stripeSessionId =
+    input.stripeSessionId?.trim() || `prototype_${crypto.randomUUID()}`;
+  try {
+    await insertInitialContribution(
+      supabase,
+      currentSyndicate.id,
+      amount,
+      stripeSessionId,
+    );
+  } catch (error) {
+    await supabase
+      .from("syndicates")
+      .update({ total_raised: currentSyndicate.totalRaised })
+      .eq("id", currentSyndicate.id);
+    throw error;
+  }
+
+  const updatedSyndicate = normalizeSyndicateRecord(
+    updatedSyndicateRow as Record<string, unknown>,
+  );
+  if (!updatedSyndicate) {
+    throw new Error("Updated syndicate payload is malformed.");
+  }
+
+  const coupExecuted = await resolveCoupIfEligible(updatedSyndicate);
+
+  return {
+    syndicate: updatedSyndicate,
+    coupExecuted,
+  };
 }
 
 export async function initializeSyndicate(

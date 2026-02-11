@@ -11,9 +11,9 @@ export function getServerSupabaseClient() {
     return null;
   }
 
-  // Prefer anon for read parity with browser policy behavior.
-  // If anon is misconfigured, fall back to service role so server snapshots still work.
-  const readKey = env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? env.SUPABASE_SERVICE_ROLE_KEY;
+  // Prefer service role for server-side reads so writes and reads stay in sync
+  // even when anon key/policies are misconfigured in hosted environments.
+  const readKey = env.SUPABASE_SERVICE_ROLE_KEY ?? env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!readKey) {
     return null;
   }

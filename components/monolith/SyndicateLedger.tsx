@@ -6,9 +6,10 @@ import type { SyndicateLedgerRow } from "@/types/monolith";
 
 type SyndicateLedgerProps = {
   syndicates: SyndicateLedgerRow[];
+  onSelect?: (syndicate: SyndicateLedgerRow) => void;
 };
 
-export function SyndicateLedger({ syndicates }: SyndicateLedgerProps) {
+export function SyndicateLedger({ syndicates, onSelect }: SyndicateLedgerProps) {
   if (syndicates.length === 0) {
     return (
       <div className="ledger-row">
@@ -25,12 +26,21 @@ export function SyndicateLedger({ syndicates }: SyndicateLedgerProps) {
           return (
             <motion.li
               key={syndicate.id}
-              className="ledger-row !block space-y-3"
+              className={`ledger-row !block space-y-3 ${onSelect ? "cursor-pointer" : ""}`}
               layout
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
               transition={{ duration: 0.22, ease: "easeOut" }}
+              onClick={() => onSelect?.(syndicate)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onSelect?.(syndicate);
+                }
+              }}
+              role={onSelect ? "button" : undefined}
+              tabIndex={onSelect ? 0 : undefined}
             >
               <p className="truncate text-[0.68rem] tracking-[0.13em] text-white/92">
                 {syndicate.proposedContent}

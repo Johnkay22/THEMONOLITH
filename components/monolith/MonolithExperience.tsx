@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AcquireSoloModal } from "@/components/monolith/AcquireSoloModal";
+import { ContributeSyndicateModal } from "@/components/monolith/ContributeSyndicateModal";
 import { ControlDeck } from "@/components/monolith/ControlDeck";
 import { InitializeSyndicateModal } from "@/components/monolith/InitializeSyndicateModal";
 import { MonolithDisplay } from "@/components/monolith/MonolithDisplay";
@@ -11,7 +12,7 @@ import { SyndicateLedger } from "@/components/monolith/SyndicateLedger";
 import { useMonolithRealtime } from "@/hooks/useMonolithRealtime";
 import { buildSyndicateLedgerRows } from "@/lib/protocol/normalizers";
 import { calculateDisplacementCost, formatUsd } from "@/lib/protocol/pricing";
-import type { MonolithOccupant, Syndicate } from "@/types/monolith";
+import type { MonolithOccupant, Syndicate, SyndicateLedgerRow } from "@/types/monolith";
 
 type MonolithExperienceProps = {
   initialMonolith: MonolithOccupant;
@@ -26,7 +27,13 @@ export function MonolithExperience({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAcquireSoloModalOpen, setIsAcquireSoloModalOpen] = useState(false);
   const [isProtocolModalOpen, setIsProtocolModalOpen] = useState(false);
-  const snapshot = useMonolithRealtime(initialMonolith, initialSyndicates);
+  const [selectedSyndicateId, setSelectedSyndicateId] = useState<string | null>(
+    null,
+  );
+  const { snapshot, refreshSnapshot } = useMonolithRealtime(
+    initialMonolith,
+    initialSyndicates,
+  );
 
   const displacementCost = useMemo(
     () => calculateDisplacementCost(snapshot.monolith.valuation),
@@ -36,6 +43,13 @@ export function MonolithExperience({
   const ledgerRows = useMemo(
     () => buildSyndicateLedgerRows(snapshot.syndicates, displacementCost),
     [displacementCost, snapshot.syndicates],
+  );
+  const selectedSyndicate = useMemo(
+    () =>
+      selectedSyndicateId
+        ? ledgerRows.find((row) => row.id === selectedSyndicateId) ?? null
+        : null,
+    [ledgerRows, selectedSyndicateId],
   );
 
   const handleInitializeSyndicate = async (draft: {
@@ -64,6 +78,7 @@ export function MonolithExperience({
     }
 
     setIsModalOpen(false);
+    await refreshSnapshot();
     router.refresh();
   };
 
@@ -93,6 +108,37 @@ export function MonolithExperience({
     }
 
     setIsAcquireSoloModalOpen(false);
+    await refreshSnapshot();
+    router.refresh();
+  };
+
+  const handleContributeSyndicate = async (draft: {
+    syndicateId: string;
+    amount: number;
+  }) => {
+    const response = await fetch("/api/syndicates/contribute", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(draft),
+    });
+
+    let payload: { error?: string } | null = null;
+    try {
+      payload = (await response.json()) as { error?: string };
+    } catch {
+      payload = null;
+    }
+
+    if (!response.ok) {
+      throw new Error(
+        payload?.error ?? "Failed to contribute to syndicate. Please try again.",
+      );
+    }
+
+    setSelectedSyndicateId(null);
+    await refreshSnapshot();
     router.refresh();
   };
 
@@ -135,7 +181,12 @@ export function MonolithExperience({
 
         <section className="mt-3 space-y-3 border-t border-white/20 pt-4">
           <h2 className="ui-label">ACTIVE SYNDICATES ({ledgerRows.length})</h2>
-          <SyndicateLedger syndicates={ledgerRows} />
+          <SyndicateLedger
+            syndicates={ledgerRows}
+            onSelect={(syndicate: SyndicateLedgerRow) =>
+              setSelectedSyndicateId(syndicate.id)
+            }
+          />
         </section>
       </main>
 
@@ -156,6 +207,14 @@ export function MonolithExperience({
       <ProtocolModal
         open={isProtocolModalOpen}
         onClose={() => setIsProtocolModalOpen(false)}
+      />
+
+      <ContributeSyndicateModal
+        open={Boolean(selectedSyndicateId)}
+        syndicate={selectedSyndicate}
+        minimumContribution={1}
+        onClose={() => setSelectedSyndicateId(null)}
+        onContribute={handleContributeSyndicate}
       />
     </>
   );
