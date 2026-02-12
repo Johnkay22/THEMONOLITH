@@ -29,11 +29,11 @@ export function MonolithDisplay({ content, transitionKey }: MonolithDisplayProps
 
     const maxSize =
       variantClass === "monolith-display--hero"
-        ? 260
+        ? 240
         : variantClass === "monolith-display--balanced"
-          ? 200
-          : 150;
-    const minSize = 14;
+          ? 190
+          : 140;
+    const minSize = 8;
 
     let low = minSize;
     let high = maxSize;
@@ -42,7 +42,7 @@ export function MonolithDisplay({ content, transitionKey }: MonolithDisplayProps
     while (low <= high) {
       const mid = Math.floor((low + high) / 2);
       text.style.fontSize = `${mid}px`;
-      const horizontalSafety = Math.max(12, Math.floor(mid * 0.11));
+      const horizontalSafety = Math.max(14, Math.floor(mid * 0.12));
       const verticalSafety = Math.max(4, Math.floor(mid * 0.03));
 
       const fits =
@@ -57,12 +57,47 @@ export function MonolithDisplay({ content, transitionKey }: MonolithDisplayProps
       }
     }
 
-    text.style.fontSize = `${best}px`;
+    let finalSize = best;
+    text.style.fontSize = `${finalSize}px`;
+    while (finalSize > minSize) {
+      const horizontalSafety = Math.max(14, Math.floor(finalSize * 0.12));
+      const verticalSafety = Math.max(4, Math.floor(finalSize * 0.03));
+      const overflows =
+        text.scrollWidth + horizontalSafety > container.clientWidth ||
+        text.scrollHeight + verticalSafety > container.clientHeight;
+      if (!overflows) {
+        break;
+      }
+
+      finalSize -= 1;
+      text.style.fontSize = `${finalSize}px`;
+    }
   }, [variantClass]);
 
   useEffect(() => {
     fitDisplayText();
   }, [fitDisplayText, transitionKey]);
+
+  useEffect(() => {
+    if (typeof document === "undefined" || !("fonts" in document)) {
+      return;
+    }
+
+    const fonts = document.fonts;
+    void fonts.ready.then(() => {
+      fitDisplayText();
+    });
+
+    const handleFontsLoaded = () => {
+      fitDisplayText();
+    };
+
+    fonts.addEventListener?.("loadingdone", handleFontsLoaded);
+
+    return () => {
+      fonts.removeEventListener?.("loadingdone", handleFontsLoaded);
+    };
+  }, [fitDisplayText]);
 
   useEffect(() => {
     if (typeof ResizeObserver === "undefined") {
@@ -94,7 +129,7 @@ export function MonolithDisplay({ content, transitionKey }: MonolithDisplayProps
   return (
     <section
       ref={containerRef}
-      className="relative flex h-[58svh] min-h-[17rem] max-h-[65svh] items-center justify-center overflow-hidden px-2 sm:px-3"
+      className="relative flex h-[58svh] min-h-[17rem] max-h-[74svh] items-center justify-center overflow-hidden px-2 sm:px-3"
     >
       <AnimatePresence mode="wait">
         <motion.h1

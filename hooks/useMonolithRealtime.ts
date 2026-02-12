@@ -167,17 +167,33 @@ export function useMonolithRealtime(
   });
 
   useEffect(() => {
-    setSnapshot({
-      monolith: initialMonolith,
-      syndicates: initialSyndicates,
+    setSnapshot((previousSnapshot) => {
+      const previousTimestamp = Date.parse(previousSnapshot.monolith.createdAt);
+      const incomingTimestamp = Date.parse(initialMonolith.createdAt);
+      if (
+        !Number.isNaN(previousTimestamp) &&
+        !Number.isNaN(incomingTimestamp) &&
+        incomingTimestamp < previousTimestamp
+      ) {
+        return previousSnapshot;
+      }
+
+      return {
+        monolith: initialMonolith,
+        syndicates: initialSyndicates,
+      };
     });
   }, [initialMonolith, initialSyndicates]);
 
   const refreshSnapshot = useCallback(async () => {
     try {
-      const response = await fetch("/api/monolith/snapshot", {
+      const response = await fetch(`/api/monolith/snapshot?ts=${Date.now()}`, {
         method: "GET",
         cache: "no-store",
+        headers: {
+          "Cache-Control": "no-cache, no-store, max-age=0",
+          Pragma: "no-cache",
+        },
       });
       if (!response.ok) {
         return;
@@ -325,12 +341,18 @@ export function useMonolithRealtime(
       }
     };
 
+    const handlePageShow = () => {
+      void refreshSnapshot();
+    };
+
     window.addEventListener("focus", handleWindowFocus);
+    window.addEventListener("pageshow", handlePageShow);
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       window.clearInterval(intervalId);
       window.removeEventListener("focus", handleWindowFocus);
+      window.removeEventListener("pageshow", handlePageShow);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [refreshSnapshot]);
