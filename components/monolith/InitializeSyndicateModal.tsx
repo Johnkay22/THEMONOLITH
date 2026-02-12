@@ -7,6 +7,10 @@ import { formatUsd } from "@/lib/protocol/pricing";
 type SyndicateDraft = {
   proposedContent: string;
   initialContribution: number;
+  authorName: string;
+  notifyEmail: string;
+  notifyOnFunded: boolean;
+  notifyOnEveryContribution: boolean;
 };
 
 type InitializeSyndicateModalProps = {
@@ -26,6 +30,11 @@ export function InitializeSyndicateModal({
   const [initialContribution, setInitialContribution] = useState(
     minimumContribution.toFixed(2),
   );
+  const [authorName, setAuthorName] = useState("");
+  const [notifyEmail, setNotifyEmail] = useState("");
+  const [notifyOnFunded, setNotifyOnFunded] = useState(true);
+  const [notifyOnEveryContribution, setNotifyOnEveryContribution] =
+    useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
 
@@ -33,6 +42,10 @@ export function InitializeSyndicateModal({
     if (!open) {
       setProposedContent("");
       setInitialContribution(minimumContribution.toFixed(2));
+      setAuthorName("");
+      setNotifyEmail("");
+      setNotifyOnFunded(true);
+      setNotifyOnEveryContribution(false);
       setIsSubmitting(false);
       setSubmissionError(null);
     }
@@ -60,6 +73,10 @@ export function InitializeSyndicateModal({
       await onDeploy?.({
         proposedContent: proposedContent.trim(),
         initialContribution: Number(contribution.toFixed(2)),
+        authorName: authorName.trim(),
+        notifyEmail: notifyEmail.trim(),
+        notifyOnFunded,
+        notifyOnEveryContribution,
       });
     } catch (error) {
       const message =
@@ -130,6 +147,67 @@ export function InitializeSyndicateModal({
                   className="field-input resize-none"
                   placeholder="YOUR MESSAGE HERE"
                 />
+              </label>
+
+              <label className="block space-y-2">
+                <span className="ui-label text-[0.65rem]">
+                  Author Name / Alias (optional)
+                </span>
+                <input
+                  type="text"
+                  maxLength={40}
+                  value={authorName}
+                  onChange={(event) => {
+                    setAuthorName(event.target.value);
+                    if (submissionError) {
+                      setSubmissionError(null);
+                    }
+                  }}
+                  className="field-input"
+                  placeholder="Anonymous"
+                />
+              </label>
+
+              <label className="block space-y-2">
+                <span className="ui-label text-[0.65rem]">
+                  Notify Email (optional)
+                </span>
+                <input
+                  type="email"
+                  value={notifyEmail}
+                  onChange={(event) => {
+                    setNotifyEmail(event.target.value);
+                    if (submissionError) {
+                      setSubmissionError(null);
+                    }
+                  }}
+                  className="field-input"
+                  placeholder="you@example.com"
+                />
+              </label>
+
+              <label className="flex items-center gap-3 border border-white/25 px-3 py-2">
+                <input
+                  type="checkbox"
+                  checked={notifyOnFunded}
+                  onChange={(event) => setNotifyOnFunded(event.target.checked)}
+                />
+                <span className="ui-label text-[0.6rem]">
+                  Notify me when fully funded
+                </span>
+              </label>
+
+              <label className="flex items-center gap-3 border border-white/25 px-3 py-2">
+                <input
+                  type="checkbox"
+                  checked={notifyOnEveryContribution}
+                  onChange={(event) =>
+                    setNotifyOnEveryContribution(event.target.checked)
+                  }
+                />
+                <span className="ui-label text-[0.6rem]">
+                  Notify me for every contribution
+                </span>
               </label>
 
               <label className="block space-y-2">

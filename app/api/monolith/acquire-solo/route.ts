@@ -8,6 +8,8 @@ import {
 type AcquireSoloPayload = {
   content: string;
   bidAmount: number;
+  authorName?: string;
+  notifyEmail?: string;
 };
 
 export const runtime = "nodejs";
@@ -36,6 +38,8 @@ export async function POST(request: Request) {
     result = await acquireSolo({
       content: payload.content,
       bidAmount: payload.bidAmount,
+      authorName: payload.authorName,
+      notifyEmail: payload.notifyEmail,
     });
   } catch (error) {
     console.error("[api/monolith/acquire-solo] write failed", {

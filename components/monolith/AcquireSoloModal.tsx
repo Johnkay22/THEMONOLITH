@@ -7,6 +7,8 @@ import { formatUsd } from "@/lib/protocol/pricing";
 type AcquireSoloDraft = {
   content: string;
   bidAmount: number;
+  authorName: string;
+  notifyEmail: string;
 };
 
 type AcquireSoloModalProps = {
@@ -24,6 +26,8 @@ export function AcquireSoloModal({
 }: AcquireSoloModalProps) {
   const [content, setContent] = useState("");
   const [bidAmount, setBidAmount] = useState(minimumBid.toFixed(2));
+  const [authorName, setAuthorName] = useState("");
+  const [notifyEmail, setNotifyEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
 
@@ -31,6 +35,8 @@ export function AcquireSoloModal({
     if (!open) {
       setContent("");
       setBidAmount(minimumBid.toFixed(2));
+      setAuthorName("");
+      setNotifyEmail("");
       setIsSubmitting(false);
       setSubmissionError(null);
     }
@@ -58,6 +64,8 @@ export function AcquireSoloModal({
       await onAcquire?.({
         content: content.trim(),
         bidAmount: Number(numericBidAmount.toFixed(2)),
+        authorName: authorName.trim(),
+        notifyEmail: notifyEmail.trim(),
       });
     } catch (error) {
       const message =
@@ -126,6 +134,41 @@ export function AcquireSoloModal({
                   }}
                   className="field-input resize-none"
                   placeholder="YOUR MESSAGE HERE"
+                />
+              </label>
+
+              <label className="block space-y-2">
+                <span className="ui-label text-[0.65rem]">Author Name / Alias (optional)</span>
+                <input
+                  type="text"
+                  maxLength={40}
+                  value={authorName}
+                  onChange={(event) => {
+                    setAuthorName(event.target.value);
+                    if (submissionError) {
+                      setSubmissionError(null);
+                    }
+                  }}
+                  className="field-input"
+                  placeholder="Anonymous"
+                />
+              </label>
+
+              <label className="block space-y-2">
+                <span className="ui-label text-[0.65rem]">
+                  Notify Me if I am displaced (optional email)
+                </span>
+                <input
+                  type="email"
+                  value={notifyEmail}
+                  onChange={(event) => {
+                    setNotifyEmail(event.target.value);
+                    if (submissionError) {
+                      setSubmissionError(null);
+                    }
+                  }}
+                  className="field-input"
+                  placeholder="you@example.com"
                 />
               </label>
 

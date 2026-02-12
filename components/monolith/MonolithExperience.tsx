@@ -7,6 +7,8 @@ import { ControlDeck } from "@/components/monolith/ControlDeck";
 import { InitializeSyndicateModal } from "@/components/monolith/InitializeSyndicateModal";
 import { MonolithDisplay } from "@/components/monolith/MonolithDisplay";
 import { ProtocolModal } from "@/components/monolith/ProtocolModal";
+import { SyndicateContributorsModal } from "@/components/monolith/SyndicateContributorsModal";
+import { SyndicateFundedModal } from "@/components/monolith/SyndicateFundedModal";
 import { SyndicateLedger } from "@/components/monolith/SyndicateLedger";
 import { useMonolithRealtime } from "@/hooks/useMonolithRealtime";
 import { buildSyndicateLedgerRows } from "@/lib/protocol/normalizers";
@@ -26,6 +28,7 @@ type MonolithExperienceProps = {
 type ToastState = {
   id: string;
   message: string;
+  variant: "error" | "success";
 };
 
 export function MonolithExperience({
@@ -38,12 +41,13 @@ export function MonolithExperience({
   const [selectedSyndicateId, setSelectedSyndicateId] = useState<string | null>(
     null,
   );
+  const [isContributorModalOpen, setIsContributorModalOpen] = useState(false);
+  const [contributors, setContributors] = useState<string[]>([]);
+  const [isLoadingContributors, setIsLoadingContributors] = useState(false);
+  const [isFundedCongratsOpen, setIsFundedCongratsOpen] = useState(false);
   const [toast, setToast] = useState<ToastState | null>(null);
   const { snapshot, refreshSnapshot, applySnapshot, applyMonolith, applySyndicate } =
-    useMonolithRealtime(
-    initialMonolith,
-    initialSyndicates,
-  );
+    useMonolithRealtime(initialMonolith, initialSyndicates);
 
   const displacementCost = useMemo(
     () => calculateDisplacementCost(snapshot.monolith.valuation),
@@ -73,25 +77,95 @@ export function MonolithExperience({
     syndicates: value.syndicates.map((syndicate) => ({ ...syndicate })),
   });
 
-  const showTransactionFailedToast = (details?: string) => {
-    const message = details?.trim()
-      ? `Transaction Failed: ${details}`
-      : "Transaction Failed";
+  const showToast = (
+    variant: "error" | "success",
+    message: string,
+    autoHideDelayMs = 3600,
+  ) => {
     const nextToast = {
       id: crypto.randomUUID(),
       message,
+      variant,
     };
     setToast(nextToast);
     window.setTimeout(() => {
       setToast((currentToast) =>
         currentToast?.id === nextToast.id ? null : currentToast,
       );
-    }, 3600);
+    }, autoHideDelayMs);
+  };
+
+  const showTransactionFailedToast = (details?: string) => {
+    const message = details?.trim()
+      ? `Transaction Failed: ${details}`
+      : "Transaction Failed";
+    showToast("error", message);
+  };
+
+  const applySnapshotIfFresh = (nextSnapshot: MonolithSnapshot | undefined) => {
+    if (!nextSnapshot || nextSnapshot.monolith.id === "seed-monolith") {
+      return;
+    }
+
+    const nextTimestamp = Date.parse(nextSnapshot.monolith.createdAt);
+    const currentTimestamp = Date.parse(snapshot.monolith.createdAt);
+    if (
+      !Number.isNaN(nextTimestamp) &&
+      !Number.isNaN(currentTimestamp) &&
+      nextTimestamp < currentTimestamp
+    ) {
+      return;
+    }
+
+    applySnapshot(nextSnapshot);
+  };
+
+  const handleOpenContributors = async () => {
+    const sourceSyndicateId = snapshot.monolith.sourceSyndicateId;
+    if (!sourceSyndicateId) {
+      return;
+    }
+
+    setIsContributorModalOpen(true);
+    setIsLoadingContributors(true);
+    try {
+      const response = await fetch(
+        `/api/syndicates/contributors?syndicateId=${encodeURIComponent(sourceSyndicateId)}`,
+        {
+          method: "GET",
+          cache: "no-store",
+        },
+      );
+      if (!response.ok) {
+        setContributors([]);
+        return;
+      }
+
+      const payload = (await response.json()) as {
+        contributors?: Array<{ name?: string }>;
+      };
+      const names = Array.isArray(payload.contributors)
+        ? payload.contributors.map((entry) =>
+            typeof entry.name === "string" && entry.name.trim()
+              ? entry.name.trim()
+              : "Anonymous",
+          )
+        : [];
+      setContributors(names);
+    } catch {
+      setContributors([]);
+    } finally {
+      setIsLoadingContributors(false);
+    }
   };
 
   const handleInitializeSyndicate = async (draft: {
     proposedContent: string;
     initialContribution: number;
+    authorName: string;
+    notifyEmail: string;
+    notifyOnFunded: boolean;
+    notifyOnEveryContribution: boolean;
   }) => {
     const previousSnapshot = cloneSnapshot(snapshot);
     try {
@@ -108,6 +182,7 @@ export function MonolithExperience({
             error?: string;
             syndicate?: Syndicate;
             snapshot?: MonolithSnapshot;
+            coupExecuted?: boolean;
           }
         | null = null;
       try {
@@ -129,21 +204,12 @@ export function MonolithExperience({
       if (payload?.syndicate) {
         applySyndicate(payload.syndicate);
       }
-
-      const snapshotMonolithTimestamp =
-        payload?.snapshot && payload.snapshot.monolith.id !== "seed-monolith"
-          ? Date.parse(payload.snapshot.monolith.createdAt)
-          : Number.NaN;
-      const currentMonolithTimestamp = Date.parse(snapshot.monolith.createdAt);
-      if (
-        payload?.snapshot &&
-        !Number.isNaN(snapshotMonolithTimestamp) &&
-        snapshotMonolithTimestamp >= currentMonolithTimestamp
-      ) {
-        applySnapshot(payload.snapshot);
-      }
+      applySnapshotIfFresh(payload?.snapshot);
 
       setIsModalOpen(false);
+      if (payload?.coupExecuted) {
+        setIsFundedCongratsOpen(true);
+      }
       queueSnapshotReconciliation();
     } catch (error) {
       applySnapshot(previousSnapshot);
@@ -154,13 +220,24 @@ export function MonolithExperience({
     }
   };
 
-  const handleAcquireSolo = async (draft: { content: string; bidAmount: number }) => {
+  const handleAcquireSolo = async (draft: {
+    content: string;
+    bidAmount: number;
+    authorName: string;
+    notifyEmail: string;
+  }) => {
     const previousSnapshot = cloneSnapshot(snapshot);
     const optimisticMonolith: MonolithOccupant = {
       id: `optimistic-${crypto.randomUUID()}`,
       content: draft.content,
       valuation: draft.bidAmount,
       ownerId: null,
+      authorName: draft.authorName.trim() || null,
+      authorEmail: draft.notifyEmail.trim().toLowerCase() || null,
+      sourceType: "solo",
+      sourceSyndicateId: null,
+      fundedByCount: null,
+      fundedInDays: null,
       createdAt: new Date().toISOString(),
       active: true,
     };
@@ -175,6 +252,8 @@ export function MonolithExperience({
         body: JSON.stringify({
           content: draft.content,
           bidAmount: draft.bidAmount,
+          authorName: draft.authorName,
+          notifyEmail: draft.notifyEmail,
         }),
       });
 
@@ -204,23 +283,7 @@ export function MonolithExperience({
       if (payload?.monolith) {
         applyMonolith(payload.monolith);
       }
-
-      const payloadMonolithTimestamp =
-        payload?.monolith && typeof payload.monolith.createdAt === "string"
-          ? Date.parse(payload.monolith.createdAt)
-          : Number.NaN;
-      const snapshotMonolithTimestamp =
-        payload?.snapshot && payload.snapshot.monolith.id !== "seed-monolith"
-          ? Date.parse(payload.snapshot.monolith.createdAt)
-          : Number.NaN;
-      if (
-        payload?.snapshot &&
-        !Number.isNaN(snapshotMonolithTimestamp) &&
-        (Number.isNaN(payloadMonolithTimestamp) ||
-          snapshotMonolithTimestamp >= payloadMonolithTimestamp)
-      ) {
-        applySnapshot(payload.snapshot);
-      }
+      applySnapshotIfFresh(payload?.snapshot);
 
       setIsAcquireSoloModalOpen(false);
       queueSnapshotReconciliation();
@@ -236,6 +299,9 @@ export function MonolithExperience({
   const handleContributeSyndicate = async (draft: {
     syndicateId: string;
     amount: number;
+    authorName: string;
+    notifyEmail: string;
+    notifyOnFunded: boolean;
   }) => {
     const previousSnapshot = cloneSnapshot(snapshot);
     try {
@@ -252,6 +318,7 @@ export function MonolithExperience({
             error?: string;
             syndicate?: Syndicate;
             snapshot?: MonolithSnapshot;
+            coupExecuted?: boolean;
           }
         | null = null;
       try {
@@ -273,21 +340,13 @@ export function MonolithExperience({
       if (payload?.syndicate) {
         applySyndicate(payload.syndicate);
       }
-
-      const snapshotMonolithTimestamp =
-        payload?.snapshot && payload.snapshot.monolith.id !== "seed-monolith"
-          ? Date.parse(payload.snapshot.monolith.createdAt)
-          : Number.NaN;
-      const currentMonolithTimestamp = Date.parse(snapshot.monolith.createdAt);
-      if (
-        payload?.snapshot &&
-        !Number.isNaN(snapshotMonolithTimestamp) &&
-        snapshotMonolithTimestamp >= currentMonolithTimestamp
-      ) {
-        applySnapshot(payload.snapshot);
-      }
+      applySnapshotIfFresh(payload?.snapshot);
 
       setSelectedSyndicateId(null);
+      if (payload?.coupExecuted === true) {
+        setIsFundedCongratsOpen(true);
+        showToast("success", "Syndicate Funded. Congratulations.", 4200);
+      }
       queueSnapshotReconciliation();
     } catch (error) {
       applySnapshot(previousSnapshot);
@@ -304,7 +363,13 @@ export function MonolithExperience({
     <>
       <main className="mx-auto flex min-h-svh w-full max-w-screen-sm flex-col px-4 pb-[calc(1.6rem+env(safe-area-inset-bottom))] pt-4 sm:px-5">
         {toast ? (
-          <div className="mb-3 border border-white bg-black/90 px-3 py-2 font-mono text-[0.62rem] uppercase tracking-[0.15em] text-white/90">
+          <div
+            className={`mb-3 border px-3 py-2 font-mono text-[0.62rem] uppercase tracking-[0.15em] ${
+              toast.variant === "success"
+                ? "border-white/60 bg-white text-black"
+                : "border-white bg-black/90 text-white/90"
+            }`}
+          >
             [ {toast.message} ]
           </div>
         ) : null}
@@ -324,6 +389,33 @@ export function MonolithExperience({
             content={snapshot.monolith.content}
             transitionKey={snapshot.monolith.id}
           />
+          {snapshot.monolith.sourceType === "solo" && snapshot.monolith.authorName ? (
+            <p className="mt-2 text-right text-[0.72rem] italic tracking-[0.06em] text-white/72">
+              -{snapshot.monolith.authorName}
+            </p>
+          ) : null}
+          {snapshot.monolith.sourceType === "syndicate" ? (
+            <div className="mt-2 space-y-1 text-right">
+              <p className="text-[0.72rem] italic tracking-[0.06em] text-white/72">
+                -{snapshot.monolith.authorName ?? "Anonymous"}
+              </p>
+              <p className="font-mono text-[0.58rem] uppercase tracking-[0.15em] text-white/66">
+                Funded by {snapshot.monolith.fundedByCount ?? 0}{" "}
+                {snapshot.monolith.sourceSyndicateId ? (
+                  <button
+                    type="button"
+                    className="underline decoration-white/50 underline-offset-2 transition-colors hover:text-white"
+                    onClick={handleOpenContributors}
+                  >
+                    users
+                  </button>
+                ) : (
+                  "users"
+                )}{" "}
+                in {snapshot.monolith.fundedInDays ?? 1} days.
+              </p>
+            </div>
+          ) : null}
         </div>
 
         <ControlDeck
@@ -378,6 +470,19 @@ export function MonolithExperience({
         minimumContribution={1}
         onClose={() => setSelectedSyndicateId(null)}
         onContribute={handleContributeSyndicate}
+      />
+
+      <SyndicateContributorsModal
+        open={isContributorModalOpen}
+        contributors={
+          isLoadingContributors ? ["Loading contributors..."] : contributors
+        }
+        onClose={() => setIsContributorModalOpen(false)}
+      />
+
+      <SyndicateFundedModal
+        open={isFundedCongratsOpen}
+        onClose={() => setIsFundedCongratsOpen(false)}
       />
     </>
   );

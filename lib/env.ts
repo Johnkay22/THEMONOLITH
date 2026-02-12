@@ -11,6 +11,8 @@ export const env = {
   ),
   STRIPE_SECRET_KEY: readEnv("STRIPE_SECRET_KEY"),
   STRIPE_WEBHOOK_SECRET: readEnv("STRIPE_WEBHOOK_SECRET"),
+  RESEND_API_KEY: readEnv("RESEND_API_KEY"),
+  RESEND_FROM_EMAIL: readEnv("RESEND_FROM_EMAIL"),
 };
 
 export const hasPublicSupabaseEnv =

@@ -36,6 +36,7 @@ app/
     snapshot/route.ts
   api/syndicates/
     contribute/route.ts
+    contributors/route.ts
     initialize/route.ts
   api/stripe/
     create-payment-intent/route.ts
@@ -52,6 +53,8 @@ components/monolith/
   MonolithDisplay.tsx
   MonolithExperience.tsx
   ProtocolModal.tsx
+  SyndicateContributorsModal.tsx
+  SyndicateFundedModal.tsx
   SyndicateLedger.tsx
 
 hooks/
@@ -59,6 +62,8 @@ hooks/
 
 lib/
   env.ts
+  notifications/
+    email.ts
   stripe.ts
   protocol/
     constants.ts
@@ -75,6 +80,7 @@ supabase/
   migrations/202602100002_realtime_and_read_policies.sql
   migrations/202602100003_update_initial_monolith_message.sql
   migrations/202602100004_backfill_owner_id_column.sql
+  migrations/202602100005_identity_and_notifications.sql
   seed.sql
 
 types/
@@ -99,6 +105,8 @@ cp .env.example .env.local
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `SUPABASE_SERVICE_ROLE_KEY` (required for syndicate initialize API route)
+   - `RESEND_API_KEY` (optional email notifications)
+   - `RESEND_FROM_EMAIL` (sender identity used by Resend)
    - Stripe keys for upcoming Step 4 integration
 
 4. Run the app:
@@ -112,4 +120,4 @@ npm run dev
 - Seed occupant is `"Who Will Forever Be Known, as the First..?"` with valuation `$1.00`.
 - Displacement cost is calculated as `current valuation + $1.00`.
 - Syndicates are modeled as persistent pools that can auto-coup when threshold is passed.
-- The `/api/syndicates/initialize` route currently records initial escrow directly (temporary backend path before Stripe webhook-first settlement is finalized in Step 4).
+- Optional alias and notification email fields are supported for solo, initialize, and contribution flows.

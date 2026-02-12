@@ -1,6 +1,7 @@
 import { INITIAL_MONOLITH_CONTENT } from "@/lib/protocol/constants";
 import type {
   MonolithOccupant,
+  MonolithSourceType,
   Syndicate,
   SyndicateLedgerRow,
   SyndicateStatus,
@@ -11,6 +12,12 @@ export const FALLBACK_MONOLITH: MonolithOccupant = {
   content: INITIAL_MONOLITH_CONTENT,
   valuation: 1,
   ownerId: null,
+  authorName: null,
+  authorEmail: null,
+  sourceType: "solo",
+  sourceSyndicateId: null,
+  fundedByCount: null,
+  fundedInDays: null,
   createdAt: new Date(0).toISOString(),
   active: true,
 };
@@ -28,6 +35,14 @@ function resolveSyndicateStatus(value: unknown): SyndicateStatus {
   return "archived";
 }
 
+function resolveMonolithSourceType(value: unknown): MonolithSourceType {
+  return value === "syndicate" ? "syndicate" : "solo";
+}
+
+function normalizeOptionalText(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
 export function normalizeMonolithRecord(
   row: Record<string, unknown> | null,
 ): MonolithOccupant {
@@ -40,10 +55,24 @@ export function normalizeMonolithRecord(
     content:
       typeof row.content === "string" ? row.content : FALLBACK_MONOLITH.content,
     valuation: toNumber(row.valuation),
-    ownerId: typeof row.owner_id === "string" ? row.owner_id : null,
+    ownerId:
+      typeof (row.owner_id ?? row.ownerId) === "string"
+        ? (row.owner_id ?? row.ownerId) as string
+        : null,
+    authorName: normalizeOptionalText(row.author_name ?? row.authorName),
+    authorEmail: normalizeOptionalText(row.author_email ?? row.authorEmail),
+    sourceType: resolveMonolithSourceType(row.source_type ?? row.sourceType),
+    sourceSyndicateId:
+      typeof (row.source_syndicate_id ?? row.sourceSyndicateId) === "string"
+        ? (row.source_syndicate_id ?? row.sourceSyndicateId) as string
+        : null,
+    fundedByCount: toNumber(row.funded_by_count ?? row.fundedByCount) || null,
+    fundedInDays: toNumber(row.funded_in_days ?? row.fundedInDays) || null,
     createdAt:
       typeof row.created_at === "string"
         ? row.created_at
+        : typeof row.createdAt === "string"
+          ? row.createdAt
         : FALLBACK_MONOLITH.createdAt,
     active: row.active === true,
   };
@@ -56,20 +85,39 @@ export function normalizeSyndicateRecord(
     return null;
   }
 
-  if (
-    typeof row.id !== "string" ||
-    typeof row.proposed_content !== "string" ||
-    typeof row.created_at !== "string"
-  ) {
+  const proposedContent =
+    typeof row.proposed_content === "string"
+      ? row.proposed_content
+      : typeof row.proposedContent === "string"
+        ? row.proposedContent
+        : null;
+  const createdAt =
+    typeof row.created_at === "string"
+      ? row.created_at
+      : typeof row.createdAt === "string"
+        ? row.createdAt
+        : null;
+
+  if (typeof row.id !== "string" || !proposedContent || !createdAt) {
     return null;
   }
 
   return {
     id: row.id,
-    proposedContent: row.proposed_content,
-    totalRaised: toNumber(row.total_raised),
+    proposedContent,
+    totalRaised: toNumber(row.total_raised ?? row.totalRaised),
     status: resolveSyndicateStatus(row.status),
-    createdAt: row.created_at,
+    creatorName: normalizeOptionalText(row.creator_name ?? row.creatorName),
+    creatorEmail: normalizeOptionalText(row.creator_email ?? row.creatorEmail),
+    notifyOnFunded: row.notify_on_funded === true || row.notifyOnFunded === true,
+    notifyOnEveryContribution:
+      row.notify_on_every_contribution === true ||
+      row.notifyOnEveryContribution === true,
+    wonAt:
+      typeof (row.won_at ?? row.wonAt) === "string"
+        ? (row.won_at ?? row.wonAt) as string
+        : null,
+    createdAt,
   };
 }
 

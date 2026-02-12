@@ -6,7 +6,6 @@ import { getBrowserSupabaseClient } from "@/lib/supabase/browser";
 import {
   normalizeMonolithRecord,
   normalizeSyndicateRecord,
-  toNumber,
 } from "@/lib/protocol/normalizers";
 import type { MonolithOccupant, MonolithSnapshot, Syndicate } from "@/types/monolith";
 
@@ -65,46 +64,17 @@ function parseSnapshotPayload(payload: unknown): MonolithSnapshot | null {
   }
 
   const row = payload as Record<string, unknown>;
-  const monolithRecord =
+  const monolithRecordRaw =
     row.monolith && typeof row.monolith === "object" && !Array.isArray(row.monolith)
       ? (row.monolith as Record<string, unknown>)
       : null;
 
-  if (!monolithRecord || typeof monolithRecord.id !== "string") {
+  if (!monolithRecordRaw) {
     return null;
   }
 
-  if (monolithRecord.id === "seed-monolith") {
-    return null;
-  }
-
-  const monolithContent =
-    typeof monolithRecord.content === "string" ? monolithRecord.content : null;
-  const monolithCreatedAt =
-    typeof monolithRecord.createdAt === "string"
-      ? monolithRecord.createdAt
-      : typeof monolithRecord.created_at === "string"
-        ? monolithRecord.created_at
-        : null;
-  if (!monolithContent || !monolithCreatedAt) {
-    return null;
-  }
-
-  const monolith: MonolithOccupant = {
-    id: monolithRecord.id,
-    content: monolithContent,
-    valuation: toNumber(monolithRecord.valuation),
-    ownerId:
-      typeof monolithRecord.ownerId === "string"
-        ? monolithRecord.ownerId
-        : typeof monolithRecord.owner_id === "string"
-          ? monolithRecord.owner_id
-          : null,
-    createdAt: monolithCreatedAt,
-    active: monolithRecord.active === true,
-  };
-
-  if (!monolith.active) {
+  const monolith = normalizeMonolithRecord(monolithRecordRaw);
+  if (monolith.id === "seed-monolith" || !monolith.active) {
     return null;
   }
 
@@ -114,40 +84,7 @@ function parseSnapshotPayload(payload: unknown): MonolithSnapshot | null {
       if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
         return null;
       }
-
-      const syndicateRecord = entry as Record<string, unknown>;
-      const id = typeof syndicateRecord.id === "string" ? syndicateRecord.id : null;
-      const proposedContent =
-        typeof syndicateRecord.proposedContent === "string"
-          ? syndicateRecord.proposedContent
-          : typeof syndicateRecord.proposed_content === "string"
-            ? syndicateRecord.proposed_content
-            : null;
-      const createdAt =
-        typeof syndicateRecord.createdAt === "string"
-          ? syndicateRecord.createdAt
-          : typeof syndicateRecord.created_at === "string"
-            ? syndicateRecord.created_at
-            : null;
-      const status = syndicateRecord.status;
-      if (
-        !id ||
-        !proposedContent ||
-        !createdAt ||
-        (status !== "active" && status !== "won" && status !== "archived")
-      ) {
-        return null;
-      }
-
-      return {
-        id,
-        proposedContent,
-        totalRaised: toNumber(
-          syndicateRecord.totalRaised ?? syndicateRecord.total_raised,
-        ),
-        status,
-        createdAt,
-      } satisfies Syndicate;
+      return normalizeSyndicateRecord(entry as Record<string, unknown>);
     })
     .filter((entry): entry is Syndicate => entry !== null && entry.status === "active");
 

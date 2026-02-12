@@ -8,6 +8,9 @@ import {
 type ContributePayload = {
   syndicateId: string;
   amount: number;
+  authorName?: string;
+  notifyEmail?: string;
+  notifyOnFunded?: boolean;
 };
 
 export const runtime = "nodejs";
@@ -39,6 +42,9 @@ export async function POST(request: Request) {
     result = await contributeToSyndicate({
       syndicateId: payload.syndicateId.trim(),
       amount: payload.amount,
+      authorName: payload.authorName,
+      notifyEmail: payload.notifyEmail,
+      notifyOnFunded: payload.notifyOnFunded,
     });
   } catch (error) {
     console.error("[api/syndicates/contribute] write failed", {

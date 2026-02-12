@@ -8,6 +8,10 @@ import {
 type InitializeSyndicatePayload = {
   proposedContent: string;
   initialContribution: number;
+  authorName?: string;
+  notifyEmail?: string;
+  notifyOnFunded?: boolean;
+  notifyOnEveryContribution?: boolean;
 };
 
 export const runtime = "nodejs";
@@ -42,6 +46,10 @@ export async function POST(request: Request) {
     result = await initializeSyndicate({
       proposedContent: payload.proposedContent,
       initialContribution: payload.initialContribution,
+      authorName: payload.authorName,
+      notifyEmail: payload.notifyEmail,
+      notifyOnFunded: payload.notifyOnFunded,
+      notifyOnEveryContribution: payload.notifyOnEveryContribution,
     });
   } catch (error) {
     console.error("[api/syndicates/initialize] write failed", {
