@@ -360,7 +360,7 @@ async function maybeNotifySyndicateFunded(
     recipients.add(contact.email.toLowerCase());
   }
 
-  for (const recipient of recipients) {
+  for (const recipient of Array.from(recipients)) {
     await sendNotificationEmail({
       supabase,
       eventKey: `syndicate-funded:${syndicate.id}:${recipient}`,
