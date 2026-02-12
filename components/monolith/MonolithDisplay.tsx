@@ -27,6 +27,14 @@ export function MonolithDisplay({ content, transitionKey }: MonolithDisplayProps
       return;
     }
 
+    const measureTextBounds = () => {
+      const renderedBox = text.getBoundingClientRect();
+      return {
+        width: Math.max(text.scrollWidth, Math.ceil(renderedBox.width)),
+        height: Math.max(text.scrollHeight, Math.ceil(renderedBox.height)),
+      };
+    };
+
     const maxSize =
       variantClass === "monolith-display--hero"
         ? 240
@@ -42,12 +50,13 @@ export function MonolithDisplay({ content, transitionKey }: MonolithDisplayProps
     while (low <= high) {
       const mid = Math.floor((low + high) / 2);
       text.style.fontSize = `${mid}px`;
-      const horizontalSafety = Math.max(14, Math.floor(mid * 0.12));
-      const verticalSafety = Math.max(4, Math.floor(mid * 0.03));
+      const horizontalSafety = Math.max(18, Math.floor(mid * 0.14));
+      const verticalSafety = Math.max(12, Math.floor(mid * 0.1));
+      const measured = measureTextBounds();
 
       const fits =
-        text.scrollWidth + horizontalSafety <= container.clientWidth &&
-        text.scrollHeight + verticalSafety <= container.clientHeight;
+        measured.width + horizontalSafety <= container.clientWidth &&
+        measured.height + verticalSafety <= container.clientHeight;
 
       if (fits) {
         best = mid;
@@ -60,11 +69,12 @@ export function MonolithDisplay({ content, transitionKey }: MonolithDisplayProps
     let finalSize = best;
     text.style.fontSize = `${finalSize}px`;
     while (finalSize > minSize) {
-      const horizontalSafety = Math.max(14, Math.floor(finalSize * 0.12));
-      const verticalSafety = Math.max(4, Math.floor(finalSize * 0.03));
+      const horizontalSafety = Math.max(18, Math.floor(finalSize * 0.14));
+      const verticalSafety = Math.max(12, Math.floor(finalSize * 0.1));
+      const measured = measureTextBounds();
       const overflows =
-        text.scrollWidth + horizontalSafety > container.clientWidth ||
-        text.scrollHeight + verticalSafety > container.clientHeight;
+        measured.width + horizontalSafety > container.clientWidth ||
+        measured.height + verticalSafety > container.clientHeight;
       if (!overflows) {
         break;
       }

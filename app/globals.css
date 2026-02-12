@@ -18,10 +18,11 @@ body {
   .monolith-display {
     display: inline-block;
     font-family: var(--font-display), "Times New Roman", serif;
-    letter-spacing: -0.05em;
-    line-height: 0.78;
+    letter-spacing: -0.045em;
+    line-height: 0.8;
     max-width: min(98vw, 42rem);
-    padding-inline: 0.08em;
+    padding-inline: 0.09em;
+    padding-block: 0.08em 0.1em;
     overflow-wrap: normal;
     word-break: normal;
     hyphens: none;
@@ -39,7 +40,7 @@ body {
 
   .monolith-display--dense {
     font-size: clamp(3.15rem, 13.5vw, 8.8rem);
-    line-height: 0.82;
+    line-height: 0.84;
   }
 
   .ui-label {
