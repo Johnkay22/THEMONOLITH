@@ -104,6 +104,13 @@ type ServiceRoleSupabaseClient = NonNullable<
 >;
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MONOLITH_SELECT_EXTENDED =
+  "id, content, valuation, created_at, active, author_name, author_email, source_type, source_syndicate_id, funded_by_count, funded_in_days";
+const MONOLITH_SELECT_LEGACY = "id, content, valuation, created_at, active";
+const SYNDICATE_SELECT_EXTENDED =
+  "id, proposed_content, total_raised, status, created_at, creator_name, creator_email, notify_on_funded, notify_on_every_contribution, won_at";
+const SYNDICATE_SELECT_LEGACY =
+  "id, proposed_content, total_raised, status, created_at";
 
 export class MonolithValidationError extends Error {}
 
@@ -195,6 +202,197 @@ function dedupeContributorContacts(contacts: ContributorContact[]) {
   }
 
   return deduped;
+}
+
+async function selectActiveMonolithRow(supabase: SupabaseClient) {
+  const primaryQuery = await supabase
+    .from("monolith_history")
+    .select(MONOLITH_SELECT_EXTENDED)
+    .eq("active", true)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!primaryQuery.error || !isLegacySchemaError(primaryQuery.error)) {
+    return primaryQuery;
+  }
+
+  return supabase
+    .from("monolith_history")
+    .select(MONOLITH_SELECT_LEGACY)
+    .eq("active", true)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+}
+
+async function insertMonolithRow(
+  supabase: ServiceRoleSupabaseClient,
+  input: {
+    content: string;
+    valuation: number;
+    sourceType: "solo" | "syndicate";
+    sourceSyndicateId: string | null;
+    authorName: string | null;
+    authorEmail: string | null;
+    fundedByCount: number | null;
+    fundedInDays: number | null;
+  },
+) {
+  const primaryInsert = await supabase
+    .from("monolith_history")
+    .insert({
+      content: input.content,
+      valuation: input.valuation,
+      active: true,
+      source_type: input.sourceType,
+      source_syndicate_id: input.sourceSyndicateId,
+      author_name: input.authorName,
+      author_email: input.authorEmail,
+      funded_by_count: input.fundedByCount,
+      funded_in_days: input.fundedInDays,
+    })
+    .select(MONOLITH_SELECT_EXTENDED)
+    .single();
+
+  if (!primaryInsert.error || !isLegacySchemaError(primaryInsert.error)) {
+    return primaryInsert;
+  }
+
+  return supabase
+    .from("monolith_history")
+    .insert({
+      content: input.content,
+      valuation: input.valuation,
+      active: true,
+    })
+    .select(MONOLITH_SELECT_LEGACY)
+    .single();
+}
+
+async function selectSyndicateRowById(
+  supabase: ServiceRoleSupabaseClient,
+  syndicateId: string,
+) {
+  const primaryQuery = await supabase
+    .from("syndicates")
+    .select(SYNDICATE_SELECT_EXTENDED)
+    .eq("id", syndicateId)
+    .maybeSingle();
+
+  if (!primaryQuery.error || !isLegacySchemaError(primaryQuery.error)) {
+    return primaryQuery;
+  }
+
+  return supabase
+    .from("syndicates")
+    .select(SYNDICATE_SELECT_LEGACY)
+    .eq("id", syndicateId)
+    .maybeSingle();
+}
+
+async function listActiveSyndicateRows(supabase: SupabaseClient) {
+  const primaryQuery = await supabase
+    .from("syndicates")
+    .select(SYNDICATE_SELECT_EXTENDED)
+    .eq("status", "active")
+    .order("total_raised", { ascending: false });
+
+  if (!primaryQuery.error || !isLegacySchemaError(primaryQuery.error)) {
+    return primaryQuery;
+  }
+
+  return supabase
+    .from("syndicates")
+    .select(SYNDICATE_SELECT_LEGACY)
+    .eq("status", "active")
+    .order("total_raised", { ascending: false });
+}
+
+async function insertSyndicateRow(
+  supabase: ServiceRoleSupabaseClient,
+  input: {
+    proposedContent: string;
+    initialContribution: number;
+    creatorName: string | null;
+    creatorEmail: string | null;
+    notifyOnFunded: boolean;
+    notifyOnEveryContribution: boolean;
+  },
+) {
+  const primaryInsert = await supabase
+    .from("syndicates")
+    .insert({
+      proposed_content: input.proposedContent,
+      total_raised: input.initialContribution,
+      status: "active",
+      creator_name: input.creatorName,
+      creator_email: input.creatorEmail,
+      notify_on_funded: input.notifyOnFunded,
+      notify_on_every_contribution: input.notifyOnEveryContribution,
+    })
+    .select(SYNDICATE_SELECT_EXTENDED)
+    .single();
+
+  if (!primaryInsert.error || !isLegacySchemaError(primaryInsert.error)) {
+    return primaryInsert;
+  }
+
+  return supabase
+    .from("syndicates")
+    .insert({
+      proposed_content: input.proposedContent,
+      total_raised: input.initialContribution,
+      status: "active",
+    })
+    .select(SYNDICATE_SELECT_LEGACY)
+    .single();
+}
+
+async function updateSyndicateRaisedTotal(
+  supabase: ServiceRoleSupabaseClient,
+  syndicateId: string,
+  nextRaisedTotal: number,
+) {
+  const primaryUpdate = await supabase
+    .from("syndicates")
+    .update({
+      total_raised: nextRaisedTotal,
+    })
+    .eq("id", syndicateId)
+    .eq("status", "active")
+    .select(SYNDICATE_SELECT_EXTENDED)
+    .single();
+
+  if (!primaryUpdate.error || !isLegacySchemaError(primaryUpdate.error)) {
+    return primaryUpdate;
+  }
+
+  return supabase
+    .from("syndicates")
+    .update({
+      total_raised: nextRaisedTotal,
+    })
+    .eq("id", syndicateId)
+    .eq("status", "active")
+    .select(SYNDICATE_SELECT_LEGACY)
+    .single();
+}
+
+async function markSyndicateAsWon(
+  supabase: ServiceRoleSupabaseClient,
+  syndicateId: string,
+) {
+  const primaryUpdate = await supabase
+    .from("syndicates")
+    .update({ status: "won", won_at: new Date().toISOString() })
+    .eq("id", syndicateId);
+
+  if (!primaryUpdate.error || !isLegacySchemaError(primaryUpdate.error)) {
+    return primaryUpdate;
+  }
+
+  return supabase.from("syndicates").update({ status: "won" }).eq("id", syndicateId);
 }
 
 async function recordNotificationEvent(
@@ -490,15 +688,7 @@ export async function getCurrentMonolith() {
     return FALLBACK_MONOLITH;
   }
 
-  const { data, error } = await supabase
-    .from("monolith_history")
-    .select(
-      "id, content, valuation, created_at, active, author_name, author_email, source_type, source_syndicate_id, funded_by_count, funded_in_days",
-    )
-    .eq("active", true)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const { data, error } = await selectActiveMonolithRow(supabase);
 
   if (error) {
     return FALLBACK_MONOLITH;
@@ -513,13 +703,7 @@ export async function getActiveSyndicates(): Promise<Syndicate[]> {
     return [];
   }
 
-  const { data, error } = await supabase
-    .from("syndicates")
-    .select(
-      "id, proposed_content, total_raised, status, created_at, creator_name, creator_email, notify_on_funded, notify_on_every_contribution, won_at",
-    )
-    .eq("status", "active")
-    .order("total_raised", { ascending: false });
+  const { data, error } = await listActiveSyndicateRows(supabase);
 
   if (error || !data) {
     return [];
@@ -567,15 +751,9 @@ export async function acquireSolo(input: AcquireSoloInput): Promise<AcquireSoloR
     throw new MonolithValidationError("Bid amount is invalid.");
   }
 
-  const { data: activeRow, error: activeError } = await supabase
-    .from("monolith_history")
-    .select(
-      "id, content, valuation, created_at, active, author_name, author_email, source_type, source_syndicate_id, funded_by_count, funded_in_days",
-    )
-    .eq("active", true)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const { data: activeRow, error: activeError } = await selectActiveMonolithRow(
+    supabase,
+  );
 
   if (activeError || !activeRow) {
     throw new Error("Failed to read current monolith.");
@@ -602,23 +780,19 @@ export async function acquireSolo(input: AcquireSoloInput): Promise<AcquireSoloR
     throw new Error("Failed to archive the current monolith.");
   }
 
-  const { data: insertedMonolith, error: insertError } = await supabase
-    .from("monolith_history")
-    .insert({
+  const { data: insertedMonolith, error: insertError } = await insertMonolithRow(
+    supabase,
+    {
       content,
       valuation: bidAmount,
-      active: true,
-      source_type: "solo",
-      source_syndicate_id: null,
-      author_name: authorName,
-      author_email: authorEmail,
-      funded_by_count: null,
-      funded_in_days: null,
-    })
-    .select(
-      "id, content, valuation, created_at, active, author_name, author_email, source_type, source_syndicate_id, funded_by_count, funded_in_days",
-    )
-    .single();
+      sourceType: "solo",
+      sourceSyndicateId: null,
+      authorName,
+      authorEmail,
+      fundedByCount: null,
+      fundedInDays: null,
+    },
+  );
 
   if (insertError || !insertedMonolith) {
     await supabase
@@ -645,15 +819,8 @@ async function resolveCoupIfEligible(syndicate: Syndicate) {
     return false;
   }
 
-  const { data: currentMonolithRow, error: currentMonolithError } = await supabase
-    .from("monolith_history")
-    .select(
-      "id, content, valuation, created_at, active, author_name, author_email, source_type, source_syndicate_id, funded_by_count, funded_in_days",
-    )
-    .eq("active", true)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const { data: currentMonolithRow, error: currentMonolithError } =
+    await selectActiveMonolithRow(supabase);
 
   if (currentMonolithError || !currentMonolithRow) {
     throw new Error("Failed to read current monolith valuation.");
@@ -683,23 +850,17 @@ async function resolveCoupIfEligible(syndicate: Syndicate) {
     throw new Error("Failed to archive current monolith occupant.");
   }
 
-  const { data: activatedMonolithRow, error: activateError } = await supabase
-    .from("monolith_history")
-    .insert({
+  const { data: activatedMonolithRow, error: activateError } =
+    await insertMonolithRow(supabase, {
       content: syndicate.proposedContent,
       valuation: normalizeContribution(syndicate.totalRaised),
-      active: true,
-      source_type: "syndicate",
-      source_syndicate_id: syndicate.id,
-      author_name: syndicate.creatorName,
-      author_email: syndicate.creatorEmail,
-      funded_by_count: fundedByCount,
-      funded_in_days: fundedInDays,
-    })
-    .select(
-      "id, content, valuation, created_at, active, author_name, author_email, source_type, source_syndicate_id, funded_by_count, funded_in_days",
-    )
-    .single();
+      sourceType: "syndicate",
+      sourceSyndicateId: syndicate.id,
+      authorName: syndicate.creatorName,
+      authorEmail: syndicate.creatorEmail,
+      fundedByCount,
+      fundedInDays,
+    });
 
   if (activateError || !activatedMonolithRow) {
     await supabase
@@ -709,10 +870,10 @@ async function resolveCoupIfEligible(syndicate: Syndicate) {
     throw new Error("Failed to activate syndicate as the monolith.");
   }
 
-  const { error: markWinnerError } = await supabase
-    .from("syndicates")
-    .update({ status: "won", won_at: new Date().toISOString() })
-    .eq("id", syndicate.id);
+  const { error: markWinnerError } = await markSyndicateAsWon(
+    supabase,
+    syndicate.id,
+  );
 
   if (markWinnerError) {
     throw new Error("Failed to mark syndicate as won.");
@@ -776,13 +937,8 @@ export async function contributeToSyndicate(
     );
   }
 
-  const { data: currentSyndicateRow, error: readSyndicateError } = await supabase
-    .from("syndicates")
-    .select(
-      "id, proposed_content, total_raised, status, created_at, creator_name, creator_email, notify_on_funded, notify_on_every_contribution, won_at",
-    )
-    .eq("id", input.syndicateId)
-    .maybeSingle();
+  const { data: currentSyndicateRow, error: readSyndicateError } =
+    await selectSyndicateRowById(supabase, input.syndicateId);
 
   if (readSyndicateError || !currentSyndicateRow) {
     throw new Error("Syndicate not found.");
@@ -800,17 +956,8 @@ export async function contributeToSyndicate(
   }
 
   const nextRaisedTotal = normalizeContribution(currentSyndicate.totalRaised + amount);
-  const { data: updatedSyndicateRow, error: updateSyndicateError } = await supabase
-    .from("syndicates")
-    .update({
-      total_raised: nextRaisedTotal,
-    })
-    .eq("id", currentSyndicate.id)
-    .eq("status", "active")
-    .select(
-      "id, proposed_content, total_raised, status, created_at, creator_name, creator_email, notify_on_funded, notify_on_every_contribution, won_at",
-    )
-    .single();
+  const { data: updatedSyndicateRow, error: updateSyndicateError } =
+    await updateSyndicateRaisedTotal(supabase, currentSyndicate.id, nextRaisedTotal);
 
   if (updateSyndicateError || !updatedSyndicateRow) {
     throw new Error("Failed to update syndicate total.");
@@ -896,21 +1043,15 @@ export async function initializeSyndicate(
     );
   }
 
-  const { data: syndicateRow, error: createSyndicateError } = await supabase
-    .from("syndicates")
-    .insert({
-      proposed_content: proposedContent,
-      total_raised: initialContribution,
-      status: "active",
-      creator_name: creatorName,
-      creator_email: creatorEmail,
-      notify_on_funded: notifyOnFunded,
-      notify_on_every_contribution: notifyOnEveryContribution,
-    })
-    .select(
-      "id, proposed_content, total_raised, status, created_at, creator_name, creator_email, notify_on_funded, notify_on_every_contribution, won_at",
-    )
-    .single();
+  const { data: syndicateRow, error: createSyndicateError } =
+    await insertSyndicateRow(supabase, {
+      proposedContent,
+      initialContribution,
+      creatorName,
+      creatorEmail,
+      notifyOnFunded,
+      notifyOnEveryContribution,
+    });
 
   if (createSyndicateError || !syndicateRow) {
     throw new Error("Failed to initialize syndicate.");
