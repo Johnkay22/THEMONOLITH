@@ -27,7 +27,8 @@ function getResendClient() {
 
 export async function sendMonolithEmail(input: SendMonolithEmailInput) {
   const client = getResendClient();
-  if (!client || !env.RESEND_FROM_EMAIL) {
+  const fromAddress = env.RESEND_FROM_EMAIL?.trim();
+  if (!client || !fromAddress) {
     console.error("[notifications/email] missing resend configuration", {
       hasApiKey: Boolean(env.RESEND_API_KEY),
       hasFromEmail: Boolean(env.RESEND_FROM_EMAIL),
@@ -35,10 +36,14 @@ export async function sendMonolithEmail(input: SendMonolithEmailInput) {
     return;
   }
 
-  await client.emails.send({
-    from: env.RESEND_FROM_EMAIL,
+  const { error } = await client.emails.send({
+    from: fromAddress,
     to: input.to,
     subject: input.subject,
     text: input.text,
   });
+
+  if (error) {
+    throw new Error(error.message || "Resend API returned an email send error.");
+  }
 }
