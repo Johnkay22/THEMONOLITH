@@ -28,10 +28,10 @@ export function ProtocolModal({ open, onClose }: ProtocolModalProps) {
             onClick={(event) => event.stopPropagation()}
             role="dialog"
             aria-modal="true"
-            aria-label="Protocol"
+            aria-label="The Way"
           >
             <div className="mb-5 flex items-start justify-between gap-4">
-              <h2 className="ui-label text-sm">PROTOCOL</h2>
+              <h2 className="ui-label text-sm">THE WAY</h2>
               <button
                 type="button"
                 className="ui-label text-xs text-white/70 transition-colors hover:text-white"

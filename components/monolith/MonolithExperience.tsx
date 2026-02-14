@@ -7,6 +7,7 @@ import { ControlDeck } from "@/components/monolith/ControlDeck";
 import { InitializeSyndicateModal } from "@/components/monolith/InitializeSyndicateModal";
 import { MonolithDisplay } from "@/components/monolith/MonolithDisplay";
 import { ProtocolModal } from "@/components/monolith/ProtocolModal";
+import { ProtocolTermsModal } from "@/components/monolith/ProtocolTermsModal";
 import { SyndicateContributorsModal } from "@/components/monolith/SyndicateContributorsModal";
 import { SyndicateFundedModal } from "@/components/monolith/SyndicateFundedModal";
 import { SyndicateLedger } from "@/components/monolith/SyndicateLedger";
@@ -38,6 +39,7 @@ export function MonolithExperience({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAcquireSoloModalOpen, setIsAcquireSoloModalOpen] = useState(false);
   const [isProtocolModalOpen, setIsProtocolModalOpen] = useState(false);
+  const [isProtocolTermsModalOpen, setIsProtocolTermsModalOpen] = useState(false);
   const [selectedSyndicateId, setSelectedSyndicateId] = useState<string | null>(
     null,
   );
@@ -424,16 +426,6 @@ export function MonolithExperience({
           onInitializeSyndicate={() => setIsModalOpen(true)}
         />
 
-        <div className="mb-4 flex justify-end">
-          <button
-            type="button"
-            className="ui-label text-[0.62rem] text-white/70 transition-colors hover:text-white"
-            onClick={() => setIsProtocolModalOpen(true)}
-          >
-            PROTOCOL
-          </button>
-        </div>
-
         <section className="mt-3 space-y-3 border-t border-white/20 pt-4">
           <h2 className="ui-label">ACTIVE SYNDICATES ({ledgerRows.length})</h2>
           <SyndicateLedger
@@ -443,6 +435,23 @@ export function MonolithExperience({
             }
           />
         </section>
+
+        <footer className="mt-5 flex items-center justify-between border-t border-white/20 pt-3">
+          <button
+            type="button"
+            className="ui-label text-[0.62rem] text-white/70 transition-colors hover:text-white"
+            onClick={() => setIsProtocolModalOpen(true)}
+          >
+            THE WAY
+          </button>
+          <button
+            type="button"
+            className="ui-label text-[0.62rem] text-white/70 transition-colors hover:text-white"
+            onClick={() => setIsProtocolTermsModalOpen(true)}
+          >
+            PROTOCOL &amp; TERMS
+          </button>
+        </footer>
       </main>
 
       <InitializeSyndicateModal
@@ -462,6 +471,11 @@ export function MonolithExperience({
       <ProtocolModal
         open={isProtocolModalOpen}
         onClose={() => setIsProtocolModalOpen(false)}
+      />
+
+      <ProtocolTermsModal
+        open={isProtocolTermsModalOpen}
+        onClose={() => setIsProtocolTermsModalOpen(false)}
       />
 
       <ContributeSyndicateModal
