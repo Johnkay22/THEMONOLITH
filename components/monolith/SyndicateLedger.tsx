@@ -21,10 +21,9 @@ export function SyndicateLedger({ syndicates, onSelect }: SyndicateLedgerProps) 
   return (
     <motion.ul className="space-y-2" layout>
       <AnimatePresence initial={false}>
-        {syndicates.map((syndicate, index) => {
+        {syndicates.map((syndicate) => {
           const percentage = Math.floor(syndicate.progressRatio * 100);
-          const syndicateName =
-            syndicate.creatorName?.trim() || `Syndicate ${index + 1}`;
+          const authorName = syndicate.creatorName?.trim() || "Anonymous";
           return (
             <motion.li
               key={syndicate.id}
@@ -44,11 +43,11 @@ export function SyndicateLedger({ syndicates, onSelect }: SyndicateLedgerProps) 
               role={onSelect ? "button" : undefined}
               tabIndex={onSelect ? 0 : undefined}
             >
-              <p className="font-mono text-[0.66rem] uppercase tracking-[0.14em] text-white/92">
-                {syndicateName}
-              </p>
-              <p className="text-[0.73rem] italic leading-snug text-white/70">
+              <p className="text-[0.73rem] leading-snug text-white/92">
                 {syndicate.proposedContent}
+              </p>
+              <p className="font-mono text-[0.6rem] uppercase tracking-[0.13em] text-white/66">
+                {authorName}
               </p>
               <div className="space-y-1.5">
                 <div className="h-1.5 w-full border border-white/35">
