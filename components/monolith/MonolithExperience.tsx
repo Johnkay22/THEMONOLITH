@@ -363,7 +363,7 @@ export function MonolithExperience({
 
   return (
     <>
-      <main className="mx-auto flex min-h-svh w-full max-w-xl flex-col px-4 pb-[calc(1.4rem+env(safe-area-inset-bottom))] pt-4 sm:px-5">
+      <main className="mx-auto flex min-h-svh w-full max-w-[1400px] flex-col px-4 pb-[calc(1.4rem+env(safe-area-inset-bottom))] pt-4 sm:px-6 lg:px-8">
         {toast ? (
           <div
             className={`mb-3 border px-3 py-2 font-mono text-[0.62rem] uppercase tracking-[0.15em] ${
@@ -398,51 +398,53 @@ export function MonolithExperience({
           MINIMUM BID: {formatUsd(displacementCost)}
         </div>
 
-        <section className="relative flex min-h-[42svh] flex-1 flex-col justify-center py-3">
-          <div className="min-h-[14rem] flex-1">
-            <MonolithDisplay
-              content={snapshot.monolith.content}
-              transitionKey={snapshot.monolith.id}
-            />
-          </div>
-          {snapshot.monolith.sourceType === "solo" &&
-          snapshot.monolith.authorName ? (
-            <p className="mt-2 text-right text-[0.9rem] italic tracking-[0.05em] text-white/72">
-              - {snapshot.monolith.authorName}
-            </p>
-          ) : null}
-          {snapshot.monolith.sourceType === "syndicate" ? (
-            <div className="mt-2 space-y-1 text-right">
-              <p className="text-[0.9rem] italic tracking-[0.05em] text-white/72">
-                - {snapshot.monolith.authorName ?? "Anonymous"}
-              </p>
-              <p className="font-mono text-[0.64rem] uppercase tracking-[0.13em] text-white/66">
-                Funded by {snapshot.monolith.fundedByCount ?? 0}{" "}
-                {snapshot.monolith.sourceSyndicateId ? (
-                  <button
-                    type="button"
-                    className="underline decoration-white/50 underline-offset-2 transition-colors hover:text-white"
-                    onClick={handleOpenContributors}
-                  >
-                    users
-                  </button>
-                ) : (
-                  "users"
-                )}{" "}
-                in {snapshot.monolith.fundedInDays ?? 1} days.
-              </p>
+        <div className="flex flex-1 flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1.2fr)_minmax(23rem,0.8fr)] lg:gap-6">
+          <section className="relative flex min-h-[42svh] flex-1 flex-col justify-center py-3 lg:min-h-[64vh]">
+            <div className="min-h-[14rem] flex-1">
+              <MonolithDisplay
+                content={snapshot.monolith.content}
+                transitionKey={snapshot.monolith.id}
+              />
             </div>
-          ) : null}
-        </section>
+            {snapshot.monolith.sourceType === "solo" &&
+            snapshot.monolith.authorName ? (
+              <p className="mt-2 text-right text-[0.9rem] italic tracking-[0.05em] text-white/72">
+                - {snapshot.monolith.authorName}
+              </p>
+            ) : null}
+            {snapshot.monolith.sourceType === "syndicate" ? (
+              <div className="mt-2 space-y-1 text-right">
+                <p className="text-[0.9rem] italic tracking-[0.05em] text-white/72">
+                  - {snapshot.monolith.authorName ?? "Anonymous"}
+                </p>
+                <p className="font-mono text-[0.64rem] uppercase tracking-[0.13em] text-white/66">
+                  Funded by {snapshot.monolith.fundedByCount ?? 0}{" "}
+                  {snapshot.monolith.sourceSyndicateId ? (
+                    <button
+                      type="button"
+                      className="underline decoration-white/50 underline-offset-2 transition-colors hover:text-white"
+                      onClick={handleOpenContributors}
+                    >
+                      users
+                    </button>
+                  ) : (
+                    "users"
+                  )}{" "}
+                  in {snapshot.monolith.fundedInDays ?? 1} days.
+                </p>
+              </div>
+            ) : null}
 
-        <div className="mt-1 space-y-4">
-          <ControlDeck
-            displacementCost={displacementCost}
-            onAcquireSolo={() => setIsAcquireSoloModalOpen(true)}
-            onInitializeSyndicate={() => setIsModalOpen(true)}
-          />
+            <div className="mt-4">
+              <ControlDeck
+                displacementCost={displacementCost}
+                onAcquireSolo={() => setIsAcquireSoloModalOpen(true)}
+                onInitializeSyndicate={() => setIsModalOpen(true)}
+              />
+            </div>
+          </section>
 
-          <section className="space-y-2 border-t border-white/20 pt-3">
+          <section className="space-y-2 border-t border-white/20 pt-3 lg:border lg:border-white/20 lg:px-4 lg:py-3">
             <h2 className="ui-label text-[0.68rem]">
               ACTIVE SYNDICATES ({ledgerRows.length})
             </h2>

@@ -20,7 +20,7 @@ body {
     font-family: var(--font-display), "Times New Roman", serif;
     letter-spacing: -0.045em;
     line-height: 0.8;
-    max-width: min(98vw, 42rem);
+    max-width: min(96vw, 66rem);
     padding-inline: 0.09em;
     padding-block: 0.08em 0.1em;
     overflow-wrap: normal;
