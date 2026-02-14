@@ -50,8 +50,8 @@ export function MonolithDisplay({ content, transitionKey }: MonolithDisplayProps
     while (low <= high) {
       const mid = Math.floor((low + high) / 2);
       text.style.fontSize = `${mid}px`;
-      const horizontalSafety = Math.max(18, Math.floor(mid * 0.14));
-      const verticalSafety = Math.max(12, Math.floor(mid * 0.1));
+      const horizontalSafety = Math.max(12, Math.floor(mid * 0.09));
+      const verticalSafety = Math.max(6, Math.floor(mid * 0.045));
       const measured = measureTextBounds();
 
       const fits =
@@ -69,8 +69,8 @@ export function MonolithDisplay({ content, transitionKey }: MonolithDisplayProps
     let finalSize = best;
     text.style.fontSize = `${finalSize}px`;
     while (finalSize > minSize) {
-      const horizontalSafety = Math.max(18, Math.floor(finalSize * 0.14));
-      const verticalSafety = Math.max(12, Math.floor(finalSize * 0.1));
+      const horizontalSafety = Math.max(12, Math.floor(finalSize * 0.09));
+      const verticalSafety = Math.max(6, Math.floor(finalSize * 0.045));
       const measured = measureTextBounds();
       const overflows =
         measured.width + horizontalSafety > container.clientWidth ||
@@ -139,7 +139,7 @@ export function MonolithDisplay({ content, transitionKey }: MonolithDisplayProps
   return (
     <section
       ref={containerRef}
-      className="relative flex h-full min-h-0 w-full flex-1 items-center justify-center overflow-hidden px-1 sm:px-2"
+      className="relative flex h-full min-h-[32svh] w-full flex-1 items-center justify-center overflow-hidden px-1 sm:px-2"
     >
       <AnimatePresence mode="wait">
         <motion.h1

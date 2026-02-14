@@ -398,7 +398,7 @@ export function MonolithExperience({
           MINIMUM BID: {formatUsd(displacementCost)}
         </div>
 
-        <section className="relative flex min-h-[16.5rem] flex-1 flex-col justify-center py-3">
+        <section className="relative flex min-h-[42svh] flex-1 flex-col justify-center py-3">
           <div className="min-h-[14rem] flex-1">
             <MonolithDisplay
               content={snapshot.monolith.content}
