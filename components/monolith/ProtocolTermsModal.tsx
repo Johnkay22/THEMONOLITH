@@ -60,7 +60,7 @@ export function ProtocolTermsModal({ open, onClose }: ProtocolTermsModalProps) {
                   By inscribing upon The Monolith, you acknowledge that you are entering a space of ephemeral permanence.
                 </p>
                 <p className="text-[0.72rem] leading-relaxed">
-                  The Mechanism: You understand that paying to "Acquire Solo" or "Fund a Syndicate" grants you temporary control of the display.
+                  The Mechanism: You understand that paying to &quot;Acquire Solo&quot; or &quot;Fund a Syndicate&quot; grants you temporary control of the display.
                 </p>
                 <p className="text-[0.72rem] leading-relaxed">
                   Displacement: You acknowledge that your message will be displaced by future contributors. There is no guaranteed duration of visibility. A displacement occurring 1 second after your purchase is a feature of the system, not a defect.
@@ -107,7 +107,7 @@ export function ProtocolTermsModal({ open, onClose }: ProtocolTermsModalProps) {
                   Optional Identity: If you choose to provide an Author Name, it will be publicly displayed.
                 </p>
                 <p className="text-[0.72rem] leading-relaxed">
-                  Optional Contact: If you choose to provide an Email Address, it is used solely for transactional notifications (e.g., "You have been displaced"). We do not sell your data or spam the void.
+                  Optional Contact: If you choose to provide an Email Address, it is used solely for transactional notifications (e.g., &quot;You have been displaced&quot;). We do not sell your data or spam the void.
                 </p>
                 <p className="text-[0.72rem] leading-relaxed">
                   Cookies: We use minimal local storage only to maintain the state of your session.
@@ -117,7 +117,7 @@ export function ProtocolTermsModal({ open, onClose }: ProtocolTermsModalProps) {
               <section className="space-y-2">
                 <h3 className="ui-label text-[0.66rem]">4. LIMITATION OF LIABILITY</h3>
                 <p className="text-[0.72rem] leading-relaxed">
-                  The Monolith is provided "as is." We are not liable for any damages arising from your use of the platform, including but not limited to loss of data, loss of visibility, or the psychological weight of impermanence.
+                  The Monolith is provided &quot;as is.&quot; We are not liable for any damages arising from your use of the platform, including but not limited to loss of data, loss of visibility, or the psychological weight of impermanence.
                 </p>
               </section>
             </div>
