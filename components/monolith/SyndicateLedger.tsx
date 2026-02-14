@@ -21,12 +21,14 @@ export function SyndicateLedger({ syndicates, onSelect }: SyndicateLedgerProps) 
   return (
     <motion.ul className="space-y-2" layout>
       <AnimatePresence initial={false}>
-        {syndicates.map((syndicate) => {
+        {syndicates.map((syndicate, index) => {
           const percentage = Math.floor(syndicate.progressRatio * 100);
+          const syndicateName =
+            syndicate.creatorName?.trim() || `Syndicate ${index + 1}`;
           return (
             <motion.li
               key={syndicate.id}
-              className={`ledger-row !block space-y-3 ${onSelect ? "cursor-pointer" : ""}`}
+              className={`ledger-row !block space-y-2 ${onSelect ? "cursor-pointer" : ""}`}
               layout
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
@@ -42,18 +44,24 @@ export function SyndicateLedger({ syndicates, onSelect }: SyndicateLedgerProps) 
               role={onSelect ? "button" : undefined}
               tabIndex={onSelect ? 0 : undefined}
             >
-              <p className="truncate text-[0.68rem] tracking-[0.13em] text-white/92">
+              <p className="font-mono text-[0.66rem] uppercase tracking-[0.14em] text-white/92">
+                {syndicateName}
+              </p>
+              <p className="text-[0.73rem] italic leading-snug text-white/70">
                 {syndicate.proposedContent}
               </p>
-              <div className="h-1.5 w-full border border-white/35">
-                <div
-                  className="h-full bg-white"
-                  style={{ width: `${Math.max(0, Math.min(100, percentage))}%` }}
-                />
+              <div className="space-y-1.5">
+                <div className="h-1.5 w-full border border-white/35">
+                  <div
+                    className="h-full bg-white"
+                    style={{ width: `${Math.max(0, Math.min(100, percentage))}%` }}
+                  />
+                </div>
+                <p className="text-right font-mono text-[0.6rem] uppercase tracking-[0.12em] text-white/68">
+                  {formatUsd(syndicate.totalRaised)} / {formatUsd(syndicate.target)} (
+                  {percentage}%)
+                </p>
               </div>
-              <p className="text-right text-[0.62rem] tracking-[0.13em] text-white/76">
-                {formatUsd(syndicate.totalRaised)} / {formatUsd(syndicate.target)}
-              </p>
             </motion.li>
           );
         })}

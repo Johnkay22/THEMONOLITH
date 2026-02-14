@@ -107,7 +107,7 @@ export function ProtocolTermsModal({ open, onClose }: ProtocolTermsModalProps) {
                   Optional Identity: If you choose to provide an Author Name, it will be publicly displayed.
                 </p>
                 <p className="text-[0.72rem] leading-relaxed">
-                  Optional Contact: If you choose to provide an Email Address, it is used solely for transactional notifications (e.g., &quot;You have been displaced&quot;). We do not sell your data or spam the void.
+                  Optional Contact: If you choose to provide an Email Address, it is used solely for transactional notifications. We do not sell your data.
                 </p>
                 <p className="text-[0.72rem] leading-relaxed">
                   Cookies: We use minimal local storage only to maintain the state of your session.

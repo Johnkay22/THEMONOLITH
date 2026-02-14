@@ -363,7 +363,7 @@ export function MonolithExperience({
 
   return (
     <>
-      <main className="mx-auto flex min-h-svh w-full max-w-screen-sm flex-col px-4 pb-[calc(1.6rem+env(safe-area-inset-bottom))] pt-4 sm:px-5">
+      <main className="mx-auto flex min-h-svh w-full max-w-xl flex-col px-4 pb-[calc(1.4rem+env(safe-area-inset-bottom))] pt-4 sm:px-5">
         {toast ? (
           <div
             className={`mb-3 border px-3 py-2 font-mono text-[0.62rem] uppercase tracking-[0.15em] ${
@@ -375,33 +375,48 @@ export function MonolithExperience({
             [ {toast.message} ]
           </div>
         ) : null}
-        <header className="ui-label mb-3">THE MONOLITH</header>
 
-        <div className="flex flex-1 flex-col justify-center">
-          <div className="valuation-plaque mb-6">
-            <p className="ui-label text-[0.62rem] text-white/70">
-              CURRENT VALUATION: {formatUsd(snapshot.monolith.valuation)}
-            </p>
-            <p className="ui-label text-[0.62rem] text-white/55">
-              MINIMUM BID: {formatUsd(displacementCost)}
-            </p>
+        <header className="mb-2 flex items-center justify-between border border-white bg-white px-4 py-3 text-black">
+          <h1
+            className="text-[1.9rem] font-semibold leading-none sm:text-[2.1rem]"
+            style={{ fontFamily: 'var(--font-display), "Times New Roman", serif' }}
+          >
+            THE MONOLITH
+          </h1>
+          <button
+            type="button"
+            className="font-mono text-[0.82rem] uppercase tracking-[0.14em] text-black transition-opacity hover:opacity-70"
+            onClick={() => setIsProtocolModalOpen(true)}
+          >
+            [ THE WAY ]
+          </button>
+        </header>
+
+        <div className="mb-2 border-y border-white/25 py-2 text-center font-mono text-xs uppercase tracking-[0.14em] text-white/86">
+          CURRENT VALUATION: {formatUsd(snapshot.monolith.valuation)}
+          <span className="px-2 text-white/45">|</span>
+          MINIMUM BID: {formatUsd(displacementCost)}
+        </div>
+
+        <section className="relative flex min-h-[16.5rem] flex-1 flex-col justify-center py-3">
+          <div className="min-h-[14rem] flex-1">
+            <MonolithDisplay
+              content={snapshot.monolith.content}
+              transitionKey={snapshot.monolith.id}
+            />
           </div>
-
-          <MonolithDisplay
-            content={snapshot.monolith.content}
-            transitionKey={snapshot.monolith.id}
-          />
-          {snapshot.monolith.sourceType === "solo" && snapshot.monolith.authorName ? (
-            <p className="mt-2 text-right text-[0.72rem] italic tracking-[0.06em] text-white/72">
-              -{snapshot.monolith.authorName}
+          {snapshot.monolith.sourceType === "solo" &&
+          snapshot.monolith.authorName ? (
+            <p className="mt-2 text-right text-[0.9rem] italic tracking-[0.05em] text-white/72">
+              - {snapshot.monolith.authorName}
             </p>
           ) : null}
           {snapshot.monolith.sourceType === "syndicate" ? (
             <div className="mt-2 space-y-1 text-right">
-              <p className="text-[0.72rem] italic tracking-[0.06em] text-white/72">
-                -{snapshot.monolith.authorName ?? "Anonymous"}
+              <p className="text-[0.9rem] italic tracking-[0.05em] text-white/72">
+                - {snapshot.monolith.authorName ?? "Anonymous"}
               </p>
-              <p className="font-mono text-[0.58rem] uppercase tracking-[0.15em] text-white/66">
+              <p className="font-mono text-[0.64rem] uppercase tracking-[0.13em] text-white/66">
                 Funded by {snapshot.monolith.fundedByCount ?? 0}{" "}
                 {snapshot.monolith.sourceSyndicateId ? (
                   <button
@@ -418,35 +433,32 @@ export function MonolithExperience({
               </p>
             </div>
           ) : null}
-        </div>
-
-        <ControlDeck
-          displacementCost={displacementCost}
-          onAcquireSolo={() => setIsAcquireSoloModalOpen(true)}
-          onInitializeSyndicate={() => setIsModalOpen(true)}
-        />
-
-        <section className="mt-3 space-y-3 border-t border-white/20 pt-4">
-          <h2 className="ui-label">ACTIVE SYNDICATES ({ledgerRows.length})</h2>
-          <SyndicateLedger
-            syndicates={ledgerRows}
-            onSelect={(syndicate: SyndicateLedgerRow) =>
-              setSelectedSyndicateId(syndicate.id)
-            }
-          />
         </section>
 
-        <footer className="mt-5 flex items-center justify-between border-t border-white/20 pt-3">
+        <div className="mt-1 space-y-4">
+          <ControlDeck
+            displacementCost={displacementCost}
+            onAcquireSolo={() => setIsAcquireSoloModalOpen(true)}
+            onInitializeSyndicate={() => setIsModalOpen(true)}
+          />
+
+          <section className="space-y-2 border-t border-white/20 pt-3">
+            <h2 className="ui-label text-[0.68rem]">
+              ACTIVE SYNDICATES ({ledgerRows.length})
+            </h2>
+            <SyndicateLedger
+              syndicates={ledgerRows}
+              onSelect={(syndicate: SyndicateLedgerRow) =>
+                setSelectedSyndicateId(syndicate.id)
+              }
+            />
+          </section>
+        </div>
+
+        <footer className="mt-4 border-t border-white/20 pt-3 text-center">
           <button
             type="button"
-            className="ui-label text-[0.62rem] text-white/70 transition-colors hover:text-white"
-            onClick={() => setIsProtocolModalOpen(true)}
-          >
-            THE WAY
-          </button>
-          <button
-            type="button"
-            className="ui-label text-[0.62rem] text-white/70 transition-colors hover:text-white"
+            className="font-mono text-[10px] uppercase tracking-[0.16em] text-white/62 transition-colors hover:text-white"
             onClick={() => setIsProtocolTermsModalOpen(true)}
           >
             PROTOCOL &amp; TERMS

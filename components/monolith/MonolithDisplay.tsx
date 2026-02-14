@@ -37,10 +37,10 @@ export function MonolithDisplay({ content, transitionKey }: MonolithDisplayProps
 
     const maxSize =
       variantClass === "monolith-display--hero"
-        ? 240
+        ? 320
         : variantClass === "monolith-display--balanced"
-          ? 190
-          : 140;
+          ? 240
+          : 170;
     const minSize = 8;
 
     let low = minSize;
@@ -139,7 +139,7 @@ export function MonolithDisplay({ content, transitionKey }: MonolithDisplayProps
   return (
     <section
       ref={containerRef}
-      className="relative flex h-[58svh] min-h-[17rem] max-h-[74svh] items-center justify-center overflow-hidden px-2 sm:px-3"
+      className="relative flex h-full min-h-0 w-full flex-1 items-center justify-center overflow-hidden px-1 sm:px-2"
     >
       <AnimatePresence mode="wait">
         <motion.h1
