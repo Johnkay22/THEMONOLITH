@@ -117,6 +117,16 @@ export function normalizeSyndicateRecord(
       typeof (row.won_at ?? row.wonAt) === "string"
         ? (row.won_at ?? row.wonAt) as string
         : null,
+    contributorCount: Math.max(
+      0,
+      Math.trunc(toNumber(row.contributor_count ?? row.contributorCount)),
+    ),
+    recentContributorCount: Math.max(
+      0,
+      Math.trunc(
+        toNumber(row.recent_contributor_count ?? row.recentContributorCount),
+      ),
+    ),
     createdAt,
   };
 }

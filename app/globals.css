@@ -5,16 +5,29 @@
 :root {
   --background: #050505;
   --foreground: #ffffff;
+  --accent: #9fb4ff;
 }
 
 body {
   color: var(--foreground);
   background-color: var(--background);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23noise)' opacity='0.18'/%3E%3C/svg%3E");
-  background-repeat: repeat;
-  background-size: 180px 180px;
+  background-image:
+    repeating-linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.02) 0,
+      rgba(255, 255, 255, 0.02) 1px,
+      transparent 1px,
+      transparent 3px
+    ),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.08' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23noise)' opacity='0.16'/%3E%3C/svg%3E");
+  background-repeat: repeat, repeat;
+  background-size: 100% 3px, 180px 180px;
   font-family: var(--font-ui), "Helvetica Neue", Helvetica, Arial, sans-serif;
   min-height: 100svh;
+}
+
+body[data-texture="off"] {
+  background-image: none;
 }
 
 @layer components {

@@ -9,6 +9,25 @@ type SyndicateLedgerProps = {
   onSelect?: (syndicate: SyndicateLedgerRow) => void;
 };
 
+function formatActiveDuration(createdAt: string) {
+  const ageMs = Date.now() - Date.parse(createdAt);
+  if (!Number.isFinite(ageMs) || ageMs < 0) {
+    return "0m";
+  }
+
+  const ageMinutes = Math.floor(ageMs / 60_000);
+  if (ageMinutes < 60) {
+    return `${ageMinutes}m`;
+  }
+
+  const ageHours = Math.floor(ageMinutes / 60);
+  if (ageHours < 24) {
+    return `${ageHours}h`;
+  }
+
+  return `${Math.floor(ageHours / 24)}d`;
+}
+
 export function SyndicateLedger({ syndicates, onSelect }: SyndicateLedgerProps) {
   if (syndicates.length === 0) {
     return (
@@ -24,6 +43,8 @@ export function SyndicateLedger({ syndicates, onSelect }: SyndicateLedgerProps) 
         {syndicates.map((syndicate) => {
           const percentage = Math.floor(syndicate.progressRatio * 100);
           const authorName = syndicate.creatorName?.trim() || "Anonymous";
+          const amountNeeded = Math.max(0, syndicate.target - syndicate.totalRaised);
+          const activeDuration = formatActiveDuration(syndicate.createdAt);
           return (
             <motion.li
               key={syndicate.id}
@@ -49,6 +70,10 @@ export function SyndicateLedger({ syndicates, onSelect }: SyndicateLedgerProps) 
               <p className="font-mono text-[0.6rem] uppercase tracking-[0.13em] text-white/66">
                 {authorName}
               </p>
+              <p className="font-mono text-[0.55rem] uppercase tracking-[0.12em] text-white/55">
+                Active {activeDuration} | Need {formatUsd(amountNeeded)} | Recent contributors{" "}
+                {syndicate.recentContributorCount}
+              </p>
               <div className="space-y-1.5">
                 <div className="h-1.5 w-full border border-white/35">
                   <div
@@ -57,8 +82,7 @@ export function SyndicateLedger({ syndicates, onSelect }: SyndicateLedgerProps) 
                   />
                 </div>
                 <p className="text-right font-mono text-[0.6rem] uppercase tracking-[0.12em] text-white/68">
-                  {formatUsd(syndicate.totalRaised)} / {formatUsd(syndicate.target)} (
-                  {percentage}%)
+                  {formatUsd(syndicate.totalRaised)} / {formatUsd(syndicate.target)} ({percentage}%)
                 </p>
               </div>
             </motion.li>

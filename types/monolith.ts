@@ -27,6 +27,8 @@ export type Syndicate = {
   notifyOnFunded: boolean;
   notifyOnEveryContribution: boolean;
   wonAt: string | null;
+  contributorCount: number;
+  recentContributorCount: number;
   createdAt: string;
 };
 
@@ -38,8 +40,17 @@ export type SyndicateLedgerRow = Syndicate & {
 export type MonolithSnapshot = {
   monolith: MonolithOccupant;
   syndicates: Syndicate[];
+  latestDisplacement: MonolithDisplacementEvent | null;
 };
 
 export type SyndicateContributor = {
   name: string;
+};
+
+export type MonolithDisplacementEvent = {
+  previousContent: string;
+  previousValuation: number;
+  currentContent: string;
+  currentValuation: number;
+  displacedAt: string;
 };

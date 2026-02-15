@@ -7,7 +7,14 @@ import {
   normalizeMonolithRecord,
   normalizeSyndicateRecord,
 } from "@/lib/protocol/normalizers";
-import type { MonolithOccupant, MonolithSnapshot, Syndicate } from "@/types/monolith";
+import type {
+  MonolithDisplacementEvent,
+  MonolithOccupant,
+  MonolithSnapshot,
+  Syndicate,
+} from "@/types/monolith";
+
+type RealtimeConnectionStatus = "connecting" | "live" | "degraded";
 
 function parseRealtimeMonolithRecord(
   payload: RealtimePostgresChangesPayload<{ [key: string]: unknown }>,
@@ -55,7 +62,78 @@ function upsertActiveSyndicate(syndicates: Syndicate[], nextSyndicate: Syndicate
     return withoutPrevious;
   }
 
-  return [...withoutPrevious, nextSyndicate];
+  const previousSyndicate = syndicates.find(
+    (syndicate) => syndicate.id === nextSyndicate.id,
+  );
+  const mergedSyndicate = previousSyndicate
+    ? {
+        ...nextSyndicate,
+        contributorCount:
+          nextSyndicate.contributorCount > 0
+            ? nextSyndicate.contributorCount
+            : previousSyndicate.contributorCount,
+        recentContributorCount:
+          nextSyndicate.recentContributorCount > 0
+            ? nextSyndicate.recentContributorCount
+            : previousSyndicate.recentContributorCount,
+      }
+    : nextSyndicate;
+  return [...withoutPrevious, mergedSyndicate];
+}
+
+function parseLatestDisplacementEvent(
+  payload: unknown,
+): MonolithDisplacementEvent | null {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return null;
+  }
+
+  const row = payload as Record<string, unknown>;
+  if (
+    typeof row.previousContent !== "string" ||
+    typeof row.currentContent !== "string" ||
+    typeof row.displacedAt !== "string"
+  ) {
+    return null;
+  }
+
+  const previousValuation = Number(row.previousValuation);
+  const currentValuation = Number(row.currentValuation);
+
+  return {
+    previousContent: row.previousContent,
+    previousValuation: Number.isFinite(previousValuation) ? previousValuation : 0,
+    currentContent: row.currentContent,
+    currentValuation: Number.isFinite(currentValuation) ? currentValuation : 0,
+    displacedAt: row.displacedAt,
+  };
+}
+
+function buildDisplacementEvent(
+  previousMonolith: MonolithOccupant,
+  nextMonolith: MonolithOccupant,
+): MonolithDisplacementEvent | null {
+  if (previousMonolith.id === nextMonolith.id) {
+    return null;
+  }
+
+  const previousTimestamp = Date.parse(previousMonolith.createdAt);
+  const nextTimestamp = Date.parse(nextMonolith.createdAt);
+  if (
+    !Number.isNaN(previousTimestamp) &&
+    !Number.isNaN(nextTimestamp) &&
+    nextTimestamp < previousTimestamp
+  ) {
+    return null;
+  }
+
+  return {
+    previousContent: previousMonolith.content,
+    previousValuation: previousMonolith.valuation,
+    currentContent: nextMonolith.content,
+    currentValuation: nextMonolith.valuation,
+    displacedAt: nextMonolith.createdAt,
+  };
 }
 
 function parseSnapshotPayload(payload: unknown): MonolithSnapshot | null {
@@ -88,20 +166,28 @@ function parseSnapshotPayload(payload: unknown): MonolithSnapshot | null {
     })
     .filter((entry): entry is Syndicate => entry !== null && entry.status === "active");
 
+  const latestDisplacement = parseLatestDisplacementEvent(row.latestDisplacement);
+
   return {
     monolith,
     syndicates,
+    latestDisplacement,
   };
 }
 
 export function useMonolithRealtime(
   initialMonolith: MonolithOccupant,
   initialSyndicates: Syndicate[],
+  initialLatestDisplacement: MonolithDisplacementEvent | null = null,
 ) {
   const [snapshot, setSnapshot] = useState<MonolithSnapshot>({
     monolith: initialMonolith,
     syndicates: initialSyndicates,
+    latestDisplacement: initialLatestDisplacement,
   });
+  const [realtimeStatus, setRealtimeStatus] =
+    useState<RealtimeConnectionStatus>("connecting");
+  const [lastSyncAt, setLastSyncAt] = useState(() => new Date().toISOString());
 
   useEffect(() => {
     setSnapshot((previousSnapshot) => {
@@ -118,9 +204,10 @@ export function useMonolithRealtime(
       return {
         monolith: initialMonolith,
         syndicates: initialSyndicates,
+        latestDisplacement: initialLatestDisplacement,
       };
     });
-  }, [initialMonolith, initialSyndicates]);
+  }, [initialLatestDisplacement, initialMonolith, initialSyndicates]);
 
   const refreshSnapshot = useCallback(async () => {
     try {
@@ -156,6 +243,7 @@ export function useMonolithRealtime(
 
         return nextSnapshot;
       });
+      setLastSyncAt(new Date().toISOString());
     } catch {
       // Network failures are ignored; realtime subscription remains primary.
     }
@@ -166,10 +254,16 @@ export function useMonolithRealtime(
   }, []);
 
   const applyMonolith = useCallback((nextMonolith: MonolithOccupant) => {
-    setSnapshot((previous) => ({
-      ...previous,
-      monolith: nextMonolith,
-    }));
+    setSnapshot((previous) => {
+      const latestDisplacement =
+        buildDisplacementEvent(previous.monolith, nextMonolith) ??
+        previous.latestDisplacement;
+      return {
+        ...previous,
+        monolith: nextMonolith,
+        latestDisplacement,
+      };
+    });
   }, []);
 
   const applySyndicate = useCallback((nextSyndicate: Syndicate) => {
@@ -182,6 +276,7 @@ export function useMonolithRealtime(
   useEffect(() => {
     const supabase = getBrowserSupabaseClient();
     if (!supabase) {
+      setRealtimeStatus("degraded");
       return;
     }
 
@@ -200,10 +295,17 @@ export function useMonolithRealtime(
             return;
           }
 
-          setSnapshot((previous) => ({
-            ...previous,
-            monolith: nextMonolith,
-          }));
+          setSnapshot((previous) => {
+            const latestDisplacement =
+              buildDisplacementEvent(previous.monolith, nextMonolith) ??
+              previous.latestDisplacement;
+            return {
+              ...previous,
+              monolith: nextMonolith,
+              latestDisplacement,
+            };
+          });
+          setLastSyncAt(new Date().toISOString());
         },
       )
       .on(
@@ -235,6 +337,7 @@ export function useMonolithRealtime(
               ...previous,
               syndicates: removeSyndicateById(previous.syndicates, previousId),
             }));
+            setLastSyncAt(new Date().toISOString());
 
             return;
           }
@@ -248,11 +351,19 @@ export function useMonolithRealtime(
             ...previous,
             syndicates: upsertActiveSyndicate(previous.syndicates, nextSyndicate),
           }));
+          setLastSyncAt(new Date().toISOString());
         },
       )
       .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          setRealtimeStatus("live");
+        }
         if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          setRealtimeStatus("degraded");
           void refreshSnapshot();
+        }
+        if (status === "CLOSED") {
+          setRealtimeStatus("degraded");
         }
       });
 
@@ -300,5 +411,7 @@ export function useMonolithRealtime(
     applySnapshot,
     applyMonolith,
     applySyndicate,
+    realtimeStatus,
+    lastSyncAt,
   };
 }

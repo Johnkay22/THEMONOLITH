@@ -11,6 +11,7 @@ export default async function Home() {
     <MonolithExperience
       initialMonolith={snapshot.monolith}
       initialSyndicates={snapshot.syndicates}
+      initialLatestDisplacement={snapshot.latestDisplacement}
     />
   );
 }

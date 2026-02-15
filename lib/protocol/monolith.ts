@@ -18,6 +18,7 @@ import {
   getServiceRoleSupabaseClient,
 } from "@/lib/supabase/server";
 import type {
+  MonolithDisplacementEvent,
   MonolithOccupant,
   MonolithSnapshot,
   Syndicate,
@@ -202,6 +203,106 @@ function dedupeContributorContacts(contacts: ContributorContact[]) {
   }
 
   return deduped;
+}
+
+function normalizeContributionUniqKey(row: Record<string, unknown>) {
+  const contributorEmail =
+    typeof row.contributor_email === "string" && row.contributor_email.trim()
+      ? row.contributor_email.trim().toLowerCase()
+      : null;
+  if (contributorEmail) {
+    return `email:${contributorEmail}`;
+  }
+
+  const contributorName =
+    typeof row.contributor_name === "string" && row.contributor_name.trim()
+      ? row.contributor_name.trim().toLowerCase()
+      : null;
+  if (contributorName) {
+    return `name:${contributorName}`;
+  }
+
+  const contributionId = typeof row.id === "string" ? row.id : crypto.randomUUID();
+  return `id:${contributionId}`;
+}
+
+async function getSyndicateContributionMetrics(
+  supabase: SupabaseClient,
+  syndicateIds: string[],
+) {
+  const metrics = new Map<
+    string,
+    {
+      contributorCount: number;
+      recentContributorCount: number;
+    }
+  >();
+  if (syndicateIds.length === 0) {
+    return metrics;
+  }
+
+  const recentWindowStart = Date.now() - 86_400_000;
+  let contributionRows: Record<string, unknown>[] | null = null;
+
+  const fullQuery = await supabase
+    .from("contributions")
+    .select("id, syndicate_id, contributor_email, contributor_name, created_at")
+    .in("syndicate_id", syndicateIds);
+
+  if (!fullQuery.error && fullQuery.data) {
+    contributionRows = fullQuery.data as Record<string, unknown>[];
+  } else if (isLegacySchemaError(fullQuery.error)) {
+    const fallbackQuery = await supabase
+      .from("contributions")
+      .select("id, syndicate_id, created_at")
+      .in("syndicate_id", syndicateIds);
+    if (!fallbackQuery.error && fallbackQuery.data) {
+      contributionRows = fallbackQuery.data as Record<string, unknown>[];
+    }
+  }
+
+  if (!contributionRows) {
+    return metrics;
+  }
+
+  const aggregate = new Map<
+    string,
+    {
+      totalKeys: Set<string>;
+      recentKeys: Set<string>;
+    }
+  >();
+
+  for (const row of contributionRows) {
+    const syndicateId = typeof row.syndicate_id === "string" ? row.syndicate_id : null;
+    if (!syndicateId) {
+      continue;
+    }
+
+    const key = normalizeContributionUniqKey(row);
+    const bucket = aggregate.get(syndicateId) ?? {
+      totalKeys: new Set<string>(),
+      recentKeys: new Set<string>(),
+    };
+    bucket.totalKeys.add(key);
+
+    const createdAt =
+      typeof row.created_at === "string" ? Date.parse(row.created_at) : Number.NaN;
+    if (!Number.isNaN(createdAt) && createdAt >= recentWindowStart) {
+      bucket.recentKeys.add(key);
+    }
+
+    aggregate.set(syndicateId, bucket);
+  }
+
+  for (const [syndicateId, bucket] of Array.from(aggregate.entries())) {
+    metrics.set(syndicateId, {
+      contributorCount: bucket.totalKeys.size,
+      recentContributorCount: bucket.recentKeys.size,
+    });
+  }
+
+  return metrics;
 }
 
 async function selectActiveMonolithRow(supabase: SupabaseClient) {
@@ -709,18 +810,76 @@ export async function getActiveSyndicates(): Promise<Syndicate[]> {
     return [];
   }
 
+  const syndicateIds = data
+    .map((row) => (typeof row.id === "string" ? row.id : null))
+    .filter((id): id is string => Boolean(id));
+  const contributionMetrics = await getSyndicateContributionMetrics(
+    supabase,
+    syndicateIds,
+  );
+
   return data
-    .map((row) => normalizeSyndicateRecord(row as Record<string, unknown>))
+    .map((row) => {
+      const record = row as Record<string, unknown>;
+      const rowId = typeof record.id === "string" ? record.id : null;
+      const metrics = rowId ? contributionMetrics.get(rowId) : null;
+
+      return normalizeSyndicateRecord({
+        ...record,
+        contributor_count: metrics?.contributorCount ?? 0,
+        recent_contributor_count: metrics?.recentContributorCount ?? 0,
+      });
+    })
     .filter((row): row is Syndicate => row !== null && row.status === "active");
+}
+
+async function getLatestDisplacementEvent(
+  currentMonolith: MonolithOccupant,
+): Promise<MonolithDisplacementEvent | null> {
+  const supabase = getServerSupabaseClient();
+  if (!supabase) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from("monolith_history")
+    .select("content, valuation, created_at")
+    .lt("created_at", currentMonolith.createdAt)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) {
+    return null;
+  }
+
+  const previousContent =
+    typeof data.content === "string" ? data.content : "UNKNOWN INSCRIPTION";
+  const previousValuation = Number(data.valuation);
+  const safePreviousValuation = Number.isFinite(previousValuation)
+    ? previousValuation
+    : 0;
+
+  return {
+    previousContent,
+    previousValuation: safePreviousValuation,
+    currentContent: currentMonolith.content,
+    currentValuation: currentMonolith.valuation,
+    displacedAt: currentMonolith.createdAt,
+  };
 }
 
 export async function getLandingSnapshot() {
   const monolith = await getCurrentMonolith();
-  const syndicates = await getActiveSyndicates();
+  const [syndicates, latestDisplacement] = await Promise.all([
+    getActiveSyndicates(),
+    getLatestDisplacementEvent(monolith),
+  ]);
 
   return {
     monolith,
     syndicates,
+    latestDisplacement,
   } satisfies MonolithSnapshot;
 }
 
