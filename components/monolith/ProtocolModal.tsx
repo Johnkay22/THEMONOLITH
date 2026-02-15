@@ -41,14 +41,38 @@ export function ProtocolModal({ open, onClose }: ProtocolModalProps) {
               </button>
             </div>
 
-            <ul className="space-y-3 font-mono text-[0.62rem] uppercase tracking-[0.17em] text-white/78">
-              <li>The Monolith displays one message at a time.</li>
-              <li>
-                To overwrite the current message, you must commit at least $1.00
-                USD more than the current valuation.
-              </li>
-              <li>There are no refunds. Only glory.</li>
-            </ul>
+            <div className="space-y-4 font-mono text-[0.62rem] uppercase tracking-[0.17em] text-white/78">
+              <section className="space-y-2">
+                <p className="text-white/92">Acquire Solo</p>
+                <ul className="space-y-2">
+                  <li>The Monolith displays one message at a time.</li>
+                  <li>
+                    To overwrite the current message, you must commit at least
+                    $1.00 USD more than the current valuation.
+                  </li>
+                </ul>
+              </section>
+
+              <section className="space-y-2">
+                <p className="text-white/92">Syndicate</p>
+                <ul className="space-y-2">
+                  <li>
+                    Initialize a syndicate with your proposed inscription and an
+                    opening contribution.
+                  </li>
+                  <li>
+                    Others can commit funds to that same syndicate over time.
+                  </li>
+                  <li>Funds do not expire while the syndicate is active.</li>
+                  <li>
+                    As soon as the syndicate total exceeds the current valuation,
+                    it automatically takes the Monolith.
+                  </li>
+                </ul>
+              </section>
+
+              <p>There are no refunds. Only glory.</p>
+            </div>
           </motion.div>
         </motion.div>
       ) : null}
