@@ -3,6 +3,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { sendMonolithEmail } from "@/lib/notifications/email";
 import {
+  INITIAL_MONOLITH_CONTENT,
   MAX_ALIAS_CHARACTERS,
   MAX_INSCRIPTION_CHARACTERS,
   MINIMUM_CONTRIBUTION_USD,
@@ -311,20 +312,96 @@ async function selectActiveMonolithRow(supabase: SupabaseClient) {
     .select(MONOLITH_SELECT_EXTENDED)
     .eq("active", true)
     .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(1);
 
-  if (!primaryQuery.error || !isLegacySchemaError(primaryQuery.error)) {
-    return primaryQuery;
+  if (!primaryQuery.error) {
+    const firstRow = Array.isArray(primaryQuery.data)
+      ? (primaryQuery.data[0] as Record<string, unknown> | undefined)
+      : undefined;
+    if (firstRow) {
+      return {
+        data: firstRow,
+        error: null,
+      };
+    }
+  } else if (!isLegacySchemaError(primaryQuery.error)) {
+    return {
+      data: null,
+      error: primaryQuery.error,
+    };
   }
 
-  return supabase
+  const fallbackActiveQuery = await supabase
     .from("monolith_history")
     .select(MONOLITH_SELECT_LEGACY)
     .eq("active", true)
     .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(1);
+
+  if (!fallbackActiveQuery.error) {
+    const firstRow = Array.isArray(fallbackActiveQuery.data)
+      ? (fallbackActiveQuery.data[0] as Record<string, unknown> | undefined)
+      : undefined;
+    if (firstRow) {
+      return {
+        data: firstRow,
+        error: null,
+      };
+    }
+  } else if (!isLegacySchemaError(fallbackActiveQuery.error)) {
+    return {
+      data: null,
+      error: fallbackActiveQuery.error,
+    };
+  }
+
+  const latestRowQuery = await supabase
+    .from("monolith_history")
+    .select(MONOLITH_SELECT_LEGACY)
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (latestRowQuery.error) {
+    return {
+      data: null,
+      error: latestRowQuery.error,
+    };
+  }
+
+  const latestRow = Array.isArray(latestRowQuery.data)
+    ? (latestRowQuery.data[0] as Record<string, unknown> | undefined)
+    : undefined;
+  if (latestRow) {
+    return {
+      data: {
+        ...latestRow,
+        active: true,
+      },
+      error: null,
+    };
+  }
+
+  const insertedSeed = await supabase
+    .from("monolith_history")
+    .insert({
+      content: INITIAL_MONOLITH_CONTENT,
+      valuation: 1,
+      active: true,
+    })
+    .select(MONOLITH_SELECT_LEGACY)
+    .single();
+
+  if (insertedSeed.error || !insertedSeed.data) {
+    return {
+      data: null,
+      error: insertedSeed.error ?? new Error("Failed to seed monolith row."),
+    };
+  }
+
+  return {
+    data: insertedSeed.data as Record<string, unknown>,
+    error: null,
+  };
 }
 
 async function insertMonolithRow(
@@ -928,15 +1005,17 @@ export async function acquireSolo(input: AcquireSoloInput): Promise<AcquireSoloR
     );
   }
 
-  const { data: archivedRows, error: archiveError } = await supabase
-    .from("monolith_history")
-    .update({ active: false })
-    .eq("id", activeMonolith.id)
-    .eq("active", true)
-    .select("id");
-
-  if (archiveError || !archivedRows || archivedRows.length === 0) {
-    throw new Error("Failed to archive the current monolith.");
+  let archivedRows: Array<{ id: string }> | null = null;
+  if (activeMonolith.active) {
+    const archiveResult = await supabase
+      .from("monolith_history")
+      .update({ active: false })
+      .eq("active", true)
+      .select("id");
+    archivedRows = archiveResult.data as Array<{ id: string }> | null;
+    if (archiveResult.error || !archivedRows || archivedRows.length === 0) {
+      throw new Error("Failed to archive the current monolith.");
+    }
   }
 
   const { data: insertedMonolith, error: insertError } = await insertMonolithRow(
@@ -954,10 +1033,12 @@ export async function acquireSolo(input: AcquireSoloInput): Promise<AcquireSoloR
   );
 
   if (insertError || !insertedMonolith) {
-    await supabase
-      .from("monolith_history")
-      .update({ active: true })
-      .eq("id", activeMonolith.id);
+    if (activeMonolith.active) {
+      await supabase
+        .from("monolith_history")
+        .update({ active: true })
+        .eq("id", activeMonolith.id);
+    }
     throw new Error("Failed to create new monolith occupant.");
   }
 
@@ -998,15 +1079,16 @@ async function resolveCoupIfEligible(syndicate: Syndicate) {
   const fundedByCount = contributorContacts.length || null;
   const fundedInDays = computeFundedInDays(syndicate.createdAt);
 
-  const { data: archivedRows, error: deactivateError } = await supabase
-    .from("monolith_history")
-    .update({ active: false })
-    .eq("id", currentMonolith.id)
-    .eq("active", true)
-    .select("id");
+  if (currentMonolith.active) {
+    const { data: archivedRows, error: deactivateError } = await supabase
+      .from("monolith_history")
+      .update({ active: false })
+      .eq("active", true)
+      .select("id");
 
-  if (deactivateError || !archivedRows || archivedRows.length === 0) {
-    throw new Error("Failed to archive current monolith occupant.");
+    if (deactivateError || !archivedRows || archivedRows.length === 0) {
+      throw new Error("Failed to archive current monolith occupant.");
+    }
   }
 
   const { data: activatedMonolithRow, error: activateError } =
@@ -1022,10 +1104,12 @@ async function resolveCoupIfEligible(syndicate: Syndicate) {
     });
 
   if (activateError || !activatedMonolithRow) {
-    await supabase
-      .from("monolith_history")
-      .update({ active: true })
-      .eq("id", currentMonolith.id);
+    if (currentMonolith.active) {
+      await supabase
+        .from("monolith_history")
+        .update({ active: true })
+        .eq("id", currentMonolith.id);
+    }
     throw new Error("Failed to activate syndicate as the monolith.");
   }
 
