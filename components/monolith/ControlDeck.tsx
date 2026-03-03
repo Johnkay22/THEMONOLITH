@@ -15,7 +15,7 @@ export function ControlDeck({
   onInitializeSyndicate,
 }: ControlDeckProps) {
   return (
-    <section className="space-y-2">
+    <section className="relative z-20 space-y-2">
       <div className="grid grid-cols-1 gap-2">
         <button
           type="button"

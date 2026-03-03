@@ -139,7 +139,7 @@ export function MonolithDisplay({ content, transitionKey }: MonolithDisplayProps
   return (
     <section
       ref={containerRef}
-      className="relative flex h-full min-h-[32svh] w-full flex-1 items-center justify-center overflow-hidden px-1 sm:px-2"
+      className="pointer-events-none relative flex h-full min-h-[32svh] w-full flex-1 items-center justify-center overflow-hidden px-1 sm:px-2"
     >
       <AnimatePresence mode="wait">
         <motion.h1
